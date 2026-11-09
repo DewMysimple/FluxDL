@@ -1,6 +1,6 @@
 node_modules/
 dist/
-release/
+/release/
 src-tauri/target/
 *.tsbuildinfo
 *.log
@@ -9,3 +9,7 @@ src-tauri/target/
 artifacts/
 src-tauri/gen/schemas/
 tools/
+
+# Local final delivery and owned publication transactions
+/release-output/
+/.fluxdl-release-work/

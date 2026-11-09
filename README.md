@@ -40,11 +40,25 @@ npm run build
 python scripts/collect-licenses.py
 npm run desktop:build
 npm run release:stage
+npm run release:verify
 ```
 
-`desktop:build` 使用 Tauri 2 构建 Windows x64 NSIS 安装包，输出为 `src-tauri/target/release/bundle/nsis/FluxDL_0.2.0_x64-setup.exe`，程序为 `src-tauri/target/release/fluxdl.exe`。`release:stage` 将安装包、程序、许可证和 SHA-256 校验值整理到项目根目录的 `release/`。本轮保留用户正在运行的0.1发行文件，不执行该复制步骤；新产物保留在target中。构建工具首次可能下载 NSIS/WebView2 官方打包资源；安装器仅在缺少 WebView2 时提供微软运行时引导安装，这与下载媒体引擎是两件事。版本未签名；这不是内置全依赖的绿色单文件版。
+`desktop:build` 使用现有Tauri 2生成Windows x64 Release程序和NSIS安装器，仅更新 `src-tauri/target/release/` 及成功来源收据。日常开发、测试及前端build不改正式交付，不清空npm/Rust缓存。
 
-CI 配置在 `.github/workflows/windows.yml`，在 push、pull request 或手动运行时执行类型、lint、格式、Clippy、前端/Rust 测试、真实 worker fixture 和 NSIS 构建，上传安装包。0.2工程优化的本机验证完成后，按用户后续要求补交并推送为 `876718a`；远程CI结果尚未核实。
+完整正式构建与只读验收：
+
+```powershell
+npm run release:build
+npm run release:verify
+```
+
+全部检查、构建、暂存和ZIP验证成功后，最新交付固定在 `release-output/FluxDL/` 和 `release-output/FluxDL.zip`。已有构建用 `release:stage` 整理，不会偷偷重编译；缺失或过期的成功来源收据会被拒绝。目录和ZIP先在同卷暂存区完成逐文件SHA256/CRC验证，再受锁保护整体替换，失败恢复旧版。
+
+`npm run release:clean`仅预览，`-- --apply`才清理脚本所有的安全临时文件；旧 `release/` 需加 `--legacy`，未知文件或运行中的程序会保留。路径、失败恢复、ZIP限额及详细命令见[构建与发布](docs/build-and-release.md)。上面的磁盘位置仅是本机示例，脚本通过自身位置定位仓库，支持空格和中文路径。
+
+构建工具首次可能下载NSIS/WebView2官方打包资源；安装器仅在缺少WebView2时提供微软运行时引导安装，这与媒体引擎不同。原始FluxDL.exe需要系统WebView2、用户配置的外部yt-dlp/FFmpeg及AppData持久化；未签名，不是内置全依赖的绿色单文件或NSIS便携版。
+
+CI 配置在 `.github/workflows/windows.yml`，push、pull request或手动运行统一执行release:build及独立verify，包含类型/lint/格式、前端/Rust/发布流程测试、真实worker fixture和NSIS构建，上传最终文件夹与ZIP。远程执行结果以Actions实际记录为准，本机验证不等于远程CI通过。
 
 本地检查：`npm run typecheck`、`npm run lint`、`npm run format:check`、`npm test`、`npm run build`；Rust：`npm run format:rust`、`npm run lint:rust`、`npm run test:rust`，以及`.\scripts\test-queue.ps1`。`npm run test:styles`复现12项固定浏览器CSS等值检查。三档性能基准与实际结果见[工程基线](docs/engineering/0.2.0-performance-baseline.md)、[复测](docs/engineering/0.2.0-performance-after.md)和[验证报告](docs/engineering/0.2.0-validation-report.md)。
 
@@ -111,4 +125,4 @@ node scripts/desktop-smoke.mjs 'E:\VedioDownload\yt-dlp.exe'
 
 工程仓库：[DewMysimple/FluxDL](https://github.com/DewMysimple/FluxDL)。工程记忆使用 standard 模式，入口是 [wiki_memory/README.md](wiki_memory/README.md)，协作与持续提交推送规则见 [AGENTS.md](AGENTS.md)。
 
-后续方向：独立引擎更新流程、可配置快捷键、播放列表设计、签名发布。0.2产物在上述target目录，release/保留用户原0.1运行文件；未创建远程Release。CI产物可通过Actions获取，以实际运行结果为准。
+后续方向：独立引擎更新流程、可配置快捷键、播放列表设计、签名发布。最新本地包在release-output；旧release/保留用户原0.1运行文件，已退出后也须显式预览/白名单确认再清理。本地打包不会创建GitHub Release。

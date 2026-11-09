@@ -10,6 +10,8 @@ export default [
     ignores: [
       "dist/**",
       "release/**",
+      "release-output/**",
+      ".fluxdl-release-work/**",
       "artifacts/**",
       "node_modules/**",
       "src-tauri/**",

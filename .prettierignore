@@ -1,6 +1,8 @@
 node_modules/
 dist/
-release/
+/release/
+/release-output/
+/.fluxdl-release-work/
 artifacts/
 src-tauri/
 licenses/

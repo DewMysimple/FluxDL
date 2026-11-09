@@ -16,9 +16,15 @@
 - 远程名 `origin` 指向上述仓库；交付前核对实际 URL 和 upstream。当前主分支为 `main`，其他任务分支遵循其实际 upstream，不悄悄推到其他仓库。
 - 完成修改后，先同步有持久价值的工程记忆、执行必要检查、审查差异，再提交本次已授权修改并推送。该范围内的提交和推送已有授权，无需重复确认。
 - 纯只读对话或没有文件变化时不制造空提交。暂存前检查变更归属，不将用户无关改动或其他任务成果混入本次提交。
-- 依赖、构建目录、安装包、测试媒体、用户数据库、凭证和本机临时数据不纳入提交；遵循 `.gitignore`。发布产物通过本地 `release/` 或 CI artifacts 交付。
+- 依赖、构建目录、安装包、测试媒体、用户数据库、凭证和本机临时数据不纳入提交；遵循 `.gitignore`。最新本地交付固定为 `release-output/FluxDL/` 和 `release-output/FluxDL.zip`，或通过CI artifacts交付。
 - 不使用强制推送、重写远程历史或丢弃用户改动来完成交付。远程领先时先获取并保全、整合相关变更；推送失败时保留本地提交并如实报告原因及恢复位置。
 - 推送后核对远程分支 SHA 与本地 HEAD 一致，并在最终答复中说明提交与推送结果。验证报告只声称实际执行和覆盖的范围。
+
+## 构建与本地产物
+
+- 日常dev/test和前端build不发布产物；desktop:build仅更新Tauri输出和成功构建来源收据。完整正式流程用 `npm run release:build`，复用已确认构建用 `npm run release:stage`，独立只读验收用 `npm run release:verify`。
+- 遵循 `docs/build-and-release.md`：同卷暂存、完整SHA256/ZIP CRC与内容校验、发布锁、整体替换、失败回滚；旧备份未经核实不可删除。禁止自动终止用户FluxDL实例。
+- `release:clean`默认仅预览；显式apply仍只处理经所有权/路径/链接校验的对象。保留node_modules和Rust增量缓存；旧release仅显式legacy白名单清理，未知文件或运行中程序保留。绝不触碰用户AppData、下载目录或其他项目。
 
 <!-- wiki-memory:start -->
 ## 工程记忆
