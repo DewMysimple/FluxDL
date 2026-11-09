@@ -79,15 +79,20 @@ export async function publish(ctx, base) {
     }
     return result;
   } catch (error) {
-    await writeJson(
-      await safePath(root, path.join(base, "last-failure.json")),
-      {
-        owner: OWNER,
-        timeUtc: new Date().toISOString(),
-        transaction: path.basename(transaction),
-        message: error.message,
-      },
-    ).catch((e) => console.warn(`无法写入故障记录：${e.message}`));
+    // Even a path/permission error while reporting the fault must not bypass rollback.
+    try {
+      await writeJson(
+        await safePath(root, path.join(base, "last-failure.json")),
+        {
+          owner: OWNER,
+          timeUtc: new Date().toISOString(),
+          transaction: path.basename(transaction),
+          message: error.message,
+        },
+      );
+    } catch (recordError) {
+      console.warn(`无法写入故障记录，继续回滚：${recordError.message}`);
+    }
     try {
       if (promoted)
         await rename(ctx, output, path.join(transaction, "rejected-output"));

@@ -29,7 +29,7 @@ cd 'E:\Software Development\FluxDL'
 npm run desktop:dev
 ```
 
-保持已有Tauri/Vite热更新：不改产品、窗口、UI、下载引擎、任务状态或IPC。浏览器预览仍为 `npm run dev`。普通dev/test/build不会触碰release-output，也不会删除node_modules或Rust target。开发端口1420若已被自己的Vite占用，应复用已有会话或选择独立端口；不要擅自终止已有进程。
+保持已有Tauri/Vite热更新：不改产品、窗口、UI、下载引擎、任务状态或IPC。浏览器预览仍为 `npm run dev`。普通dev/test/build不会触碰release-output，也不会删除node_modules或Rust target。Vite明确不监听release-output、发布暂存区、旧release、artifacts及Rust target，避免缓存扫描和Windows目录监听句柄阻止发布重命名。开发端口1420若已被自己的Vite占用，应复用已有会话或选择独立端口；不要擅自终止已有进程。
 
 | 命令 | 行为 | 更新正式交付 |
 | --- | --- | --- |
@@ -81,7 +81,7 @@ E:\Software Development\FluxDL\release-output\
 └── FluxDL.zip
 ```
 
-只有当前版本的一个安装器；ZIP内部为FluxDL/，不含自身、源码、缓存、数据库、媒体或用户配置。SHA256SUMS以稳定排序的UTF-8相对路径记录所有常规文件（包括build-info），仅排除清单自身；ZIP还会逐项验证清单文件本身。验证同时拒绝遗漏/多余文件、重复/逃逸路径、链接及额外旧安装器。
+只有当前版本的一个安装器；ZIP内部为FluxDL/，不含自身、源码、缓存、数据库、媒体或用户配置。SHA256SUMS以稳定排序的UTF-8相对路径记录所有常规文件（包括build-info），仅排除清单自身；ZIP还会逐项验证清单文件本身。验证同时拒绝遗漏/多余文件、重复/逃逸路径、链接、空目录及额外旧安装器，避免文件清单/ZIP静默漏掉目录结构。
 
 ZIP用Node内置流式压缩，不调用Compress-Archive，不增加npm依赖。明确上限：单文件≤2147483647B，ZIP总大小≤4294967294B，文件数1–65534；超限失败且保留旧版。验证严格接受本流程生成的UTF-8/deflate ZIP32格式，逐项流式解压、限制声明大小、比较CRC32/字节数/SHA256，并比对本地头与中央目录；不把未知第三方ZIP当成本流程产物。使用[Node zlib/CRC32文档](https://nodejs.org/api/zlib.html)中的内置能力；PE机器类型依据[微软PE格式](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format)。NSIS可用32位启动stub承载x64安装包，因此主程序要求AMD64/PE32+，安装器接受经实际版本资源确认的x86或x64 stub，不能仅靠安装器stub判定应用位数。
 

@@ -75,12 +75,15 @@ export function safeName(name) {
   return name;
 }
 
-export async function walkFiles(root, directory) {
+export async function walkFiles(root, directory, { rejectEmpty = false } = {}) {
   await safePath(root, directory);
   const files = [];
   const folded = new Set();
   async function walk(dir) {
-    for (const item of await fs.readdir(dir, { withFileTypes: true })) {
+    const children = await fs.readdir(dir, { withFileTypes: true });
+    if (rejectEmpty && !children.length)
+      throw new Error(`交付目录包含无法在文件清单中表示的空目录：${dir}`);
+    for (const item of children) {
       const full = await safePath(root, path.join(dir, item.name));
       const name = safeName(
         path.relative(directory, full).split(path.sep).join("/"),

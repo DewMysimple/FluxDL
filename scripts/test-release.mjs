@@ -796,3 +796,46 @@ test("异常退出损坏journal：仍保留备份，核实哈希后可显式恢�
   await releaseClean(ctx, { apply: true, recover: true });
   assert.deepEqual(await snapshot(ctx), before);
 });
+
+test("故障日志路径变为junction时，记录失败也必须完成旧版回滚", async (t) => {
+  const ctx = await fixture(t);
+  await releaseStage(ctx);
+  const before = await snapshot(ctx);
+  const sink = path.join(ctx.root, "diagnostic-sink");
+  await fs.mkdir(sink);
+  await fs.writeFile(path.join(sink, "keep.txt"), "untouched");
+  const link = path.join(ctx.root, WORK, "last-failure.json");
+  try {
+    await assert.rejects(
+      releaseStage({
+        ...ctx,
+        hook: async (phase) => {
+          if (phase !== "backup-moved") return;
+          await fs.symlink(
+            sink,
+            link,
+            process.platform === "win32" ? "junction" : "dir",
+          );
+          throw new Error("injected promotion fault");
+        },
+      }),
+      /已保留或恢复/u,
+    );
+    assert.deepEqual(await snapshot(ctx), before);
+    assert.equal(
+      await fs.readFile(path.join(sink, "keep.txt"), "utf8"),
+      "untouched",
+    );
+  } finally {
+    if (await exists(link)) await fs.unlink(link);
+  }
+});
+
+test("空许可证目录不能被ZIP静默遗漏，旧版保持不变", async (t) => {
+  const ctx = await fixture(t);
+  await releaseStage(ctx);
+  const before = await snapshot(ctx);
+  await fs.mkdir(path.join(ctx.root, "licenses/empty-license"));
+  await assert.rejects(releaseStage(ctx), /空目录/u);
+  assert.deepEqual(await snapshot(ctx), before);
+});

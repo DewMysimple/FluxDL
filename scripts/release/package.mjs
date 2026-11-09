@@ -19,10 +19,12 @@ const fail = (message) => {
 export async function inventory(root, directory) {
   return new Map(
     await Promise.all(
-      (await walkFiles(root, directory)).map(async (file) => [
-        file.name,
-        { bytes: file.bytes, sha256: sha256(await fs.readFile(file.full)) },
-      ]),
+      (await walkFiles(root, directory, { rejectEmpty: true })).map(
+        async (file) => [
+          file.name,
+          { bytes: file.bytes, sha256: sha256(await fs.readFile(file.full)) },
+        ],
+      ),
     ),
   );
 }
