@@ -1,0 +1,139 @@
+{
+  "schema": 1,
+  "dateUtc": "2026-11-09T08:50:44.447Z",
+  "build": {
+    "schema": 1,
+    "product": "FluxDL",
+    "version": "0.2.0",
+    "gitCommit": "bd5449c57259",
+    "gitCommitFull": "bd5449c57259a9ce53ee2ec282d7577ef801d36e",
+    "gitDirty": false,
+    "sourceFingerprint": "cea1d5579d54583967f6852762544f67641630881797b382f013c519fb959a30",
+    "buildTimeUtc": "2026-11-09T08:47:33.775Z",
+    "finishedTimeUtc": "2026-11-09T08:49:15.584Z",
+    "target": "windows-x64",
+    "profile": "release",
+    "packaging": "tauri2-nsis-and-raw-exe",
+    "engineDistribution": "external",
+    "validationMode": "production",
+    "buildId": "f11b6dd4-aed2-41ee-9323-c79f5f3d1201"
+  },
+  "artifacts": [
+    {
+      "name": "FluxDL.exe",
+      "bytes": 10143744,
+      "sha256": "8de6a4ca184beaa8ab9102549b4fb30c4f86e19fcbddd1d719b42c5472d24144"
+    },
+    {
+      "name": "FluxDL_0.2.0_x64-setup.exe",
+      "bytes": 3008448,
+      "sha256": "eac9584c493464d2f7e2e43db1ce437d1c734b164aa96d80d6f8d29fe2ddcd95"
+    },
+    {
+      "name": "FluxDL.zip",
+      "bytes": 7918744,
+      "sha256": "07a5e256b8dde35c468e054e1ddc9edccfb0792ebd6f5f06b792296ed9e755a6"
+    }
+  ],
+  "tests": {
+    "frontend": {
+      "passed": 90,
+      "skippedBenchmark": 1
+    },
+    "releaseWorkflow": {
+      "passed": 34,
+      "failed": 0,
+      "skipped": 0
+    },
+    "rust": {
+      "passed": 80,
+      "ignored": 1
+    },
+    "explicitQueueFixture": {
+      "passed": 1,
+      "seconds": 5.22
+    }
+  },
+  "checks": [
+    "typecheck",
+    "eslint",
+    "prettier",
+    "cargo check",
+    "cargo fmt",
+    "strict Clippy",
+    "frontend build",
+    "license collection (277 entries)",
+    "real Tauri Windows x64 Release and NSIS",
+    "read-only release:verify",
+    "git check-ignore"
+  ],
+  "content": {
+    "directoryFiles": 489,
+    "licenseFiles": 482,
+    "manifestEntries": 488,
+    "nodeZip": {
+      "files": 489,
+      "crc32": "passed",
+      "sha256": "passed",
+      "topLevel": "FluxDL/"
+    },
+    "pythonExtraction": {
+      "tool": "Python stdlib zipfile",
+      "files": 489,
+      "crc32": "passed",
+      "sha256": "all matched",
+      "topLevel": "FluxDL/"
+    },
+    "windowsExtraction": {
+      "tool": "Windows PowerShell Expand-Archive (.NET ZIP)",
+      "files": 489,
+      "sha256": "all matched",
+      "topLevel": "FluxDL/"
+    }
+  },
+  "developmentSmoke": {
+    "mode": "real-tauri-dev-with-existing-vite",
+    "command": "npm run desktop:dev -- --no-watch --config {\"build\":{\"beforeDevCommand\":\"\"}}",
+    "isolatedData": true,
+    "isolatedWebview": true,
+    "workspaceRendered": true,
+    "emptyOwnDatabase": true,
+    "gracefulExitCode": 0,
+    "releaseOutputUnchanged": true,
+    "existingViteReused": true,
+    "jsErrors": []
+  },
+  "repeatedStage": {
+    "passed": true,
+    "rebuilt": false,
+    "onlyLatestPair": true,
+    "binariesUnchanged": true
+  },
+  "readOnlyVerify": true,
+  "postPublishState": {
+    "temporaryTransactions": 0,
+    "publicationLock": false,
+    "finalTopLevel": [
+      "FluxDL",
+      "FluxDL.zip"
+    ],
+    "legacyRetained": true,
+    "legacyFiles": 488,
+    "legacyBytes": 13427205,
+    "existingUserApplicationRetained": true,
+    "existingViteRetained": true
+  },
+  "scope": {
+    "productSourceChanges": 0,
+    "dependencyLockChanges": false,
+    "signed": false,
+    "installerExecuted": false,
+    "rawReleaseDirectLaunchTested": false,
+    "remoteCiVerified": false
+  },
+  "notes": [
+    "The development smoke reused the existing Vite server and used explicit debug data/WebView isolation; it is not a raw Release direct-launch test.",
+    "The build provenance remains the actual clean code commit; later documentation-only delivery commits do not relabel the binaries.",
+    "First real promotion failed with EPERM caused by Vite watching release staging; watch exclusions fixed the reproduced directory rename while preserving the same Vite process."
+  ]
+}

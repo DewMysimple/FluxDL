@@ -4,6 +4,8 @@ status: active
 updated: 2026-11-09
 topic: windows-build-validation
 sources:
+  - "docs/build-and-release.md"
+  - "docs/engineering/release-workflow-validation.md"
   - "src-tauri/build.rs"
   - "src-tauri/windows.manifest"
   - "src-tauri/Cargo.toml"
@@ -28,10 +30,16 @@ sources:
 
 `scripts/desktop-smoke.mjs`生成原创测试图/音轨，经本地HTTP、真实yt-dlp、实际Tauri两窗口和IPC回归。它需要debug EXE、FFmpeg、显式yt-dlp路径；仅强制终止自己创建的进程树模拟异常退出。显式测试数据/profile与单实例gate可和已有用户release共存，不要求也不能停止用户实例；诊断端口被占先拒绝。隔离数据在忽略的artifacts，release不包含调试入口。可选seed、audio、error协议开关见0.2工程报告。
 
-`native-desktop-smoke.mjs`自行启动/复核唯一隔离PID、EXE和精确创建时间，验证目录Cancel、注册托盘callback的真实菜单链及固定活引擎句柄退出；14通过/1未测的版本复测还读取实际页脚和About。UIAutomation不可访问入口及物理指针命中不得冒称通过。最终本机产物不应通过release:stage覆盖用户正在运行的发行EXE。
+`native-desktop-smoke.mjs`自行启动/复核唯一隔离PID、EXE和精确创建时间，验证目录Cancel、注册托盘callback的真实菜单链及固定活引擎句柄退出；14通过/1未测的版本复测还读取实际页脚和About。UIAutomation不可访问入口及物理指针命中不得冒称通过。当前stage只更新release-output，不再写旧release；不能为发布结束用户运行实例。
 
 公开媒体联调用 `src-tauri/examples/engine_smoke.rs`，报告数字只证明当时来源与环境。站点格式、网络、EJS 和外部引擎变化后，需要针对新任务核实，不能把旧报告当作现时通过。
 
+## 正式产物工作流
+
+完整正式命令为npm run release:build，复用确认过的Tauri输入为release:stage，独立验收为release:verify。最终仅release-output/FluxDL/和FluxDL.zip；成功收据、版本/源指纹、完整SHA256/ZIP CRC、发布锁/整体替换/回滚及保备份要求见docs/build-and-release.md。clean默认只预览，保留缓存和用户数据。
+
+Windows现有Vite监听暂存目录曾使完整候选重命名EPERM；加watch ignored后同候选立即可移，原Vite PID未变，重建发布通过。不要用杀开发服务器/用户程序或忽略验证来解决。目录输出与工作区事务必须排除Vite监听。
+
 ## 证据与未核实项
 
-2026-11-09，本轮0.2实际执行前端90项、Rust80项+独立fixture、三档基准、CSS12等值、真实桌面15项及原生版本14通过/1未测；当前包含未提交源码，完整证据/最终构建见工程报告，docs/validation.md只保留0.1历史。Rust最低1.97；远程Actions、真实DPI/多屏和安装卸载仍需独立证据。
+2026-11-09，本轮0.2实际执行前端90项、Rust80项+独立fixture、三档基准、CSS12等值、真实桌面15项及原生版本14通过/1未测；当时的完整证据/构建见原工程报告；后续发布任务在干净bd5449c实际通过34项发布、90前端/80Rust+fixture、NSIS/独立verify、489文件Python和Windows解压，以及隔离debug开发启动（不代表发行EXE直接运行）。最新指纹与验收见docs/engineering/release-workflow-validation.md/json，docs/validation.md只保留0.1历史。Rust最低1.97；远程Actions、真实DPI/多屏和安装卸载仍需独立证据。

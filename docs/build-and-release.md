@@ -146,4 +146,4 @@ NSIS是安装器，不是便携版。原始EXE不是完全自包含绿色单文�
 
 自动化命令为 `npm run test:release`。临时fixture覆盖首次/同版本/新版本/重复发布、缺失或过期输入、假PE/fixture隔离、ZIP篡改及只读性、构建失败、替换及回滚失败、异常journal恢复、真实独立进程锁、Windows文件占用、Unicode/空格/嵌套目录和2MiB文件、ZIP32超限、junction防越界、未知文件和旧目录保护；不每次编译Tauri。
 
-阶段A审计已完成，阶段B/C实现已落地；完整Windows流水线和独立验收结果将在实际执行后补充到工程验收记录，不能据此段宣称尚未执行的构建或测试通过。
+阶段A–E已实施。2026-11-09最终实现的完整release:build实际成功：90项前端、34项发布、80项Rust及独立队列fixture通过，真实NSIS生成；独立verify、Python和Windows解压的489文件哈希完全一致，重复stage后仅保留最新一对产物。准确来源、文件哈希、故障回归、开发启动和未测边界见[验收记录](engineering/release-workflow-validation.md)及[脱敏JSON](engineering/release-workflow-validation.json)。本机结果不冒充远程CI通过。
