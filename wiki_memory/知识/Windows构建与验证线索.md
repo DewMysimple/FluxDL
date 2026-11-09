@@ -10,6 +10,8 @@ sources:
   - "scripts/desktop-smoke.mjs"
   - "scripts/test-queue.ps1"
   - "docs/validation.md"
+  - "docs/engineering/0.2.0-validation-report.md"
+  - "scripts/native-desktop-smoke.mjs"
 ---
 
 # Windows 构建与验证线索
@@ -24,10 +26,12 @@ sources:
 
 `scripts/test-queue.ps1` 编译确定性假引擎并显式运行默认 ignored 的 worker 生命周期测试；普通 Rust 单测通过不代表该项已执行。假引擎不替代真实媒体测试。
 
-`scripts/desktop-smoke.mjs` 生成原创测试图/音轨，经本地 HTTP、真实 yt-dlp、实际 Tauri 两窗口和 IPC 回归。它需要 debug EXE、FFmpeg、显式 yt-dlp 路径；会强制终止自己创建的应用进程树模拟异常退出，运行前按 README 关闭其他实例。隔离数据在被忽略的 `artifacts/`。调试端口仅 debug 且显式测试数据目录时启用，release 不包含入口。
+`scripts/desktop-smoke.mjs`生成原创测试图/音轨，经本地HTTP、真实yt-dlp、实际Tauri两窗口和IPC回归。它需要debug EXE、FFmpeg、显式yt-dlp路径；仅强制终止自己创建的进程树模拟异常退出。显式测试数据/profile与单实例gate可和已有用户release共存，不要求也不能停止用户实例；诊断端口被占先拒绝。隔离数据在忽略的artifacts，release不包含调试入口。可选seed、audio、error协议开关见0.2工程报告。
+
+`native-desktop-smoke.mjs`自行启动/复核唯一隔离PID、EXE和精确创建时间，验证目录Cancel、注册托盘callback的真实菜单链及固定活引擎句柄退出；14通过/1未测的版本复测还读取实际页脚和About。UIAutomation不可访问入口及物理指针命中不得冒称通过。最终本机产物不应通过release:stage覆盖用户正在运行的发行EXE。
 
 公开媒体联调用 `src-tauri/examples/engine_smoke.rs`，报告数字只证明当时来源与环境。站点格式、网络、EJS 和外部引擎变化后，需要针对新任务核实，不能把旧报告当作现时通过。
 
 ## 证据与未核实项
 
-2026-11-09 核对源码和历史记录；本轮仅工程记忆/文档维护，未重跑业务测试。Rust 配置最低 1.97；实际本机环境和完整结果见 `docs/validation.md`。远程 Actions、真实高 DPI 和安装卸载需要独立证据。
+2026-11-09，本轮0.2实际执行前端90项、Rust80项+独立fixture、三档基准、CSS12等值、真实桌面15项及原生版本14通过/1未测；当前包含未提交源码，完整证据/最终构建见工程报告，docs/validation.md只保留0.1历史。Rust最低1.97；远程Actions、真实DPI/多屏和安装卸载仍需独立证据。

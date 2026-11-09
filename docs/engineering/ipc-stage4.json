@@ -1,0 +1,214 @@
+{
+  "schemaVersion": 1,
+  "label": "stage4",
+  "generatedAt": "2026-11-09T05:57:17.769Z",
+  "runId": "2026-11-09T05-54-04-911Z",
+  "originalReportSha256": "79879a3fe53305bfabf0f1d02cf8279b9f3832aedf8dce62eda8e87f2781689b",
+  "passedChecks": 11,
+  "errors": [],
+  "observations": [
+    {
+      "window": "workspace",
+      "event": "app-state-changed",
+      "type": "settingsUpdated",
+      "count": 2,
+      "payloadBytes": {
+        "p50": 442,
+        "p95": 444,
+        "min": 442,
+        "max": 444
+      },
+      "totalPayloadBytes": 886,
+      "peakOneSecondCount": 1
+    },
+    {
+      "window": "workspace",
+      "event": "app-state-changed",
+      "type": "diagnosticsUpdated",
+      "count": 1,
+      "payloadBytes": {
+        "p50": 1122,
+        "p95": 1122,
+        "min": 1122,
+        "max": 1122
+      },
+      "totalPayloadBytes": 1122,
+      "peakOneSecondCount": 1
+    },
+    {
+      "window": "workspace",
+      "event": "app-state-changed",
+      "type": "taskUpsert",
+      "count": 27,
+      "payloadBytes": {
+        "p50": 996,
+        "p95": 1467,
+        "min": 971,
+        "max": 1610
+      },
+      "totalPayloadBytes": 31316,
+      "peakOneSecondCount": 5
+    },
+    {
+      "window": "workspace",
+      "event": "app-state-changed",
+      "type": "taskProgress",
+      "count": 41,
+      "payloadBytes": {
+        "p50": 347,
+        "p95": 590,
+        "min": 334,
+        "max": 590
+      },
+      "totalPayloadBytes": 15958,
+      "peakOneSecondCount": 3
+    },
+    {
+      "window": "workspace",
+      "event": "app-state-changed",
+      "type": "fileAvailabilityUpdated",
+      "count": 4,
+      "payloadBytes": {
+        "p50": 188,
+        "p95": 189,
+        "min": 187,
+        "max": 189
+      },
+      "totalPayloadBytes": 752,
+      "peakOneSecondCount": 1
+    },
+    {
+      "window": "workspace",
+      "event": "app-state-changed",
+      "type": "checkpoint",
+      "count": 7,
+      "payloadBytes": {
+        "p50": 97,
+        "p95": 97,
+        "min": 96,
+        "max": 97
+      },
+      "totalPayloadBytes": 678,
+      "peakOneSecondCount": 1
+    },
+    {
+      "window": "workspace",
+      "event": "app-state-changed",
+      "type": "taskRemoved",
+      "count": 1,
+      "payloadBytes": {
+        "p50": 146,
+        "p95": 146,
+        "min": 146,
+        "max": 146
+      },
+      "totalPayloadBytes": 146,
+      "peakOneSecondCount": 1
+    },
+    {
+      "window": "quick",
+      "event": "app-state-changed",
+      "type": "settingsUpdated",
+      "count": 2,
+      "payloadBytes": {
+        "p50": 442,
+        "p95": 444,
+        "min": 442,
+        "max": 444
+      },
+      "totalPayloadBytes": 886,
+      "peakOneSecondCount": 1
+    },
+    {
+      "window": "quick",
+      "event": "app-state-changed",
+      "type": "diagnosticsUpdated",
+      "count": 1,
+      "payloadBytes": {
+        "p50": 1122,
+        "p95": 1122,
+        "min": 1122,
+        "max": 1122
+      },
+      "totalPayloadBytes": 1122,
+      "peakOneSecondCount": 1
+    },
+    {
+      "window": "quick",
+      "event": "app-state-changed",
+      "type": "taskUpsert",
+      "count": 27,
+      "payloadBytes": {
+        "p50": 996,
+        "p95": 1467,
+        "min": 971,
+        "max": 1610
+      },
+      "totalPayloadBytes": 31316,
+      "peakOneSecondCount": 5
+    },
+    {
+      "window": "quick",
+      "event": "app-state-changed",
+      "type": "taskProgress",
+      "count": 41,
+      "payloadBytes": {
+        "p50": 347,
+        "p95": 590,
+        "min": 334,
+        "max": 590
+      },
+      "totalPayloadBytes": 15958,
+      "peakOneSecondCount": 3
+    },
+    {
+      "window": "quick",
+      "event": "app-state-changed",
+      "type": "fileAvailabilityUpdated",
+      "count": 4,
+      "payloadBytes": {
+        "p50": 188,
+        "p95": 189,
+        "min": 187,
+        "max": 189
+      },
+      "totalPayloadBytes": 752,
+      "peakOneSecondCount": 1
+    },
+    {
+      "window": "quick",
+      "event": "app-state-changed",
+      "type": "checkpoint",
+      "count": 7,
+      "payloadBytes": {
+        "p50": 97,
+        "p95": 97,
+        "min": 96,
+        "max": 97
+      },
+      "totalPayloadBytes": 678,
+      "peakOneSecondCount": 1
+    },
+    {
+      "window": "quick",
+      "event": "app-state-changed",
+      "type": "taskRemoved",
+      "count": 1,
+      "payloadBytes": {
+        "p50": 146,
+        "p95": 146,
+        "min": 146,
+        "max": 146
+      },
+      "totalPayloadBytes": 146,
+      "peakOneSecondCount": 1
+    }
+  ],
+  "limitations": [
+    "Real Tauri event payload UTF-8 sizes measured inside each WebView; excludes transport framing and encoding overhead.",
+    "Event listener installed before smoke actions; early application startup events are not included.",
+    "Peak count includes semantic events for that type; legacy snapshots do not identify progress versus semantic changes.",
+    "The smoke has a small number of tasks; large-history payload is measured separately by engineering_bench.",
+    "Windows background scheduling may batch delivery; observed peak is not the configured backend tick rate."
+  ]
+}

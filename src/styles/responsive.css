@@ -1,0 +1,224 @@
+:root[data-density="compact"] .task-row {
+  min-height: 63px;
+  padding: 9px 0;
+  gap: 10px;
+}
+:root[data-density="compact"] .task-main {
+  gap: 10px;
+}
+:root[data-density="compact"] .task-main .media-image {
+  width: 67px;
+  height: 38px;
+}
+:root[data-density="compact"] .history-extra {
+  padding-left: 77px;
+}
+@media (max-width: 960px) {
+  .sidebar {
+    flex-basis: 172px;
+    padding-left: 9px;
+    padding-right: 9px;
+  }
+  .sidebar-brand {
+    padding-left: 10px;
+  }
+  .sidebar nav button {
+    padding-left: 11px;
+  }
+  .page-content {
+    padding: 27px 24px 25px;
+  }
+  .desktop-shortcut {
+    display: none;
+  }
+  .task-row {
+    gap: 8px;
+  }
+  .task-actions {
+    width: 55px;
+  }
+  .task-main {
+    gap: 10px;
+  }
+  .task-main .media-image {
+    width: 72px;
+    height: 42px;
+  }
+  .quick-launch {
+    gap: 5px;
+    padding: 10px 5px;
+  }
+  .quick-launch small {
+    font-size: 9px;
+  }
+  .setting-row {
+    gap: 12px;
+  }
+  .path-control {
+    width: 230px;
+  }
+  .setting-control {
+    max-width: 60%;
+  }
+  .task-meta {
+    font-size: 9px;
+  }
+  .resting-state {
+    padding: 21px;
+  }
+  .history-extra {
+    padding-left: 82px;
+  }
+}
+@media (max-width: 780px) {
+  .sidebar {
+    flex-basis: 63px;
+    padding: 22px 8px 0;
+  }
+  .sidebar-brand {
+    padding: 0 0 27px;
+    display: grid;
+    place-items: center;
+  }
+  .sidebar-brand .brand {
+    gap: 0;
+  }
+  .sidebar-brand .brand > span:last-child,
+  .brand-tagline,
+  .nav-caption,
+  .sidebar nav button > span,
+  .sidebar nav button > small,
+  .sidebar nav button > i,
+  .quick-launch,
+  .sidebar-version,
+  .engine-status > span:nth-child(2),
+  .engine-status > svg {
+    display: none;
+  }
+  .sidebar nav button {
+    justify-content: center;
+    height: 43px;
+    padding: 0;
+  }
+  .sidebar-brand .brand-mark {
+    width: 32px;
+  }
+  .engine-status {
+    justify-content: center;
+    padding: 16px 0;
+    border: 0;
+  }
+  .sidebar-bottom {
+    padding-bottom: 10px;
+  }
+  .page-content {
+    padding: 25px 23px;
+  }
+  .page-heading {
+    margin-bottom: 23px;
+  }
+  .page-heading h1 {
+    font-size: 22px;
+  }
+  .page-heading > .quiet {
+    padding: 8px;
+  }
+  .page-heading > .quiet > svg {
+    width: 14px;
+  }
+  .page-heading p {
+    font-size: 11px;
+  }
+  .capture-panel {
+    padding: 15px;
+  }
+  .capture-panel input {
+    font-size: 14px;
+  }
+  .capture-panel .parse-button {
+    padding: 0 9px;
+    font-size: 11px;
+  }
+  .capture-panel .keycap {
+    display: none;
+  }
+  .paste-hint {
+    display: none !important;
+  }
+  .setup-banner small {
+    font-size: 10px;
+  }
+  .setup-link {
+    font-size: 10px;
+  }
+  .task-actions {
+    opacity: 1;
+  }
+  .task-copy > strong {
+    font-size: 11px;
+  }
+  .task-state {
+    min-width: 60px;
+  }
+  .task-main .media-image {
+    width: 62px;
+    height: 37px;
+  }
+  .task-meta > span:nth-last-child(1):not(:first-child) {
+    max-width: 90px;
+  }
+  .history-extra {
+    padding-left: 72px;
+  }
+  .setting-control > select {
+    min-width: 140px;
+  }
+  .path-control {
+    width: 215px;
+  }
+  .setting-row p {
+    max-width: 165px;
+  }
+  .toolbar-caption {
+    font-size: 9px;
+  }
+  .list-toolbar {
+    gap: 7px;
+  }
+  .search-field {
+    width: 240px;
+  }
+  .drawer {
+    width: 398px;
+  }
+  .settings-heading {
+    gap: 10px;
+  }
+  .settings-heading > .button {
+    font-size: 10px;
+  }
+  .statusbar {
+    padding: 0 10px;
+  }
+  .quick-application {
+    min-width: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+.application:has(.quick-shell) {
+  overflow: auto;
+}
+:root[data-reduced-motion="true"] *,
+:root[data-reduced-motion="true"] *::before,
+:root[data-reduced-motion="true"] *::after {
+  animation: none !important;
+  transition: none !important;
+}

@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "runId": "2026-11-09T06-49-11-558Z-1cb1e8b5",
+  "status": "partial",
+  "summary": {
+    "passed": 14,
+    "failed": 0,
+    "unmeasured": 1
+  },
+  "assertions": [
+    {
+      "name": "isolated debug instance, exact process start time and owned diagnostic listener",
+      "status": "passed"
+    },
+    {
+      "name": "local engine detected and isolated close behavior configured for tray",
+      "status": "passed"
+    },
+    {
+      "name": "real Workspace footer and About versions match package metadata",
+      "status": "passed"
+    },
+    {
+      "name": "native-dialog: cancel externally opened uniquely titled native directory picker",
+      "status": "passed"
+    },
+    {
+      "name": "real dialog plugin Promise resolves null after owned native Cancel",
+      "status": "passed"
+    },
+    {
+      "name": "real local native-slow download is downloading with nonzero bytes",
+      "status": "passed"
+    },
+    {
+      "name": "native-tray: native directory picker opens and Cancel keeps the path unchanged",
+      "status": "unmeasured"
+    },
+    {
+      "name": "native-tray: real tray menu restores Workspace from minimized state",
+      "status": "passed"
+    },
+    {
+      "name": "native-tray: real tray menu opens Quick Capture and native Close hides it",
+      "status": "passed"
+    },
+    {
+      "name": "native-tray: native Workspace Close hides it and tray left-button route restores it",
+      "status": "passed"
+    },
+    {
+      "name": "native-tray: owned running engine stopped after native tray Quit",
+      "status": "passed"
+    },
+    {
+      "name": "native-tray: real tray Exit waits for and exits only the selected test application",
+      "status": "passed"
+    },
+    {
+      "name": "owned running engine exit confirmed by a fixed kernel process handle",
+      "status": "passed"
+    },
+    {
+      "name": "owned application exited normally through its real native tray menu",
+      "status": "passed"
+    },
+    {
+      "name": "no frontend runtime exceptions during native interaction",
+      "status": "passed"
+    }
+  ],
+  "errors": 0,
+  "runtimeErrors": 0,
+  "version": {
+    "expected": "0.2.0",
+    "workspaceFooter": "v0.2",
+    "settingsAbout": "FluxDL 0.2.0 · MIT License"
+  },
+  "pickerReturnedNull": true,
+  "appExitCode": 0,
+  "engineStopped": "passed",
+  "trayRoutes": [
+    "registeredTrayCallback"
+  ],
+  "protectedProcesses": {
+    "observed": 1,
+    "unchanged": 1
+  },
+  "cleanup": {
+    "forcedOwnedTermination": false,
+    "mediaServerClosed": true
+  },
+  "limitations": [
+    "Only the isolated controller-owned debug process is an interaction target.",
+    "Registered tray callbacks exercise the real native menu/callback chain; they do not prove a physical pointer hit.",
+    "Unavailable UIAutomation capabilities remain unmeasured, never passed.",
+    "Directory pickers are cancelled without selecting files or changing the clipboard."
+  ],
+  "evidence": [
+    {
+      "label": "controller-isolation-proof",
+      "sha256": "5ae0c13837ac7f7618ffd241936a6bf06e6366b50644bbbed762a317c1e1f197"
+    },
+    {
+      "label": "native-dialog",
+      "sha256": "46d68b91b47a67a8c52ef2f2e8bcc69e688448572a08e6cb9be78d1fedf82ef9"
+    },
+    {
+      "label": "native-dialog-stdout",
+      "sha256": "cc7543d8058a7926535a623dcb3840a3651bb19b33bbe71eaf98dadf6ba5ad95"
+    },
+    {
+      "label": "native-dialog-stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "native-tray",
+      "sha256": "c94429180021cda31f1971669898db44c26aa7ba2deb789f6f4dbc9611541f19"
+    },
+    {
+      "label": "native-tray-stdout",
+      "sha256": "8d892a3a85b9946cc27f73020629fcf79f49e55ed552f6d27e3d2fb01b001582"
+    },
+    {
+      "label": "native-tray-stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "native-desktop-smoke-raw",
+      "sha256": "dede48a96a76bd6a184a8325f5a0ca91dc65cb21800cbe872ef0d5ea68b7b6c8"
+    }
+  ]
+}

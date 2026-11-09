@@ -1,0 +1,110 @@
+.quick-shell {
+  max-height: 720px;
+  display: flex;
+  flex-direction: column;
+}
+.quick-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+.quick-content > .capture-panel {
+  flex-shrink: 0;
+}
+.quick-content > .quick-result {
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+.quick-title,
+.quick-footer {
+  flex-shrink: 0;
+}
+.task-copy > strong,
+.setting-row strong {
+  font-size: 13px;
+}
+.task-meta,
+.status,
+.task-transfer,
+.setting-row p,
+.capture-foot,
+.history-placeholder,
+.resting-state p,
+.setup-banner small,
+.engine-status > span:nth-child(2),
+.engine-status small,
+.setting-control > select,
+.path-control input,
+.fixed-value,
+.engine-row strong,
+.engine-row strong > span,
+.engine-row small,
+.engine-row p,
+.notice,
+.text-button,
+.save-location strong,
+.save-location small,
+.field small,
+.about-card > p,
+.about-card > span,
+.about-card > small,
+.preview-banner,
+.workspace-note,
+.toolbar-caption,
+.quiet-caption {
+  font-size: var(--font-control);
+}
+.task-meta {
+  gap: 5px;
+}
+.task-state small {
+  font-size: 11px;
+}
+.quick-input .capture-foot,
+.quick-footer > span,
+.quick-footer .text-button {
+  font-size: 11px;
+}
+.quick-input .parse-button {
+  font-size: var(--font-control);
+}
+.quick-result .media-heading .eyebrow {
+  font-size: 10px;
+}
+.legal-note {
+  font-size: 11px;
+}
+.quick-result {
+  max-height: 455px;
+}
+@keyframes drawer-in {
+  from {
+    transform: translateX(22px);
+    opacity: 0.5;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes fadein {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border: 2px solid var(--bg);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

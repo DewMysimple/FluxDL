@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "runId": "2026-11-09T06-45-23-602Z-20f2a6d9",
+  "status": "partial",
+  "summary": {
+    "passed": 13,
+    "failed": 0,
+    "unmeasured": 1
+  },
+  "assertions": [
+    {
+      "name": "isolated debug instance, exact process start time and owned diagnostic listener",
+      "status": "passed"
+    },
+    {
+      "name": "local engine detected and isolated close behavior configured for tray",
+      "status": "passed"
+    },
+    {
+      "name": "native-dialog: cancel externally opened uniquely titled native directory picker",
+      "status": "passed"
+    },
+    {
+      "name": "real dialog plugin Promise resolves null after owned native Cancel",
+      "status": "passed"
+    },
+    {
+      "name": "real local native-slow download is downloading with nonzero bytes",
+      "status": "passed"
+    },
+    {
+      "name": "native-tray: native directory picker opens and Cancel keeps the path unchanged",
+      "status": "unmeasured"
+    },
+    {
+      "name": "native-tray: real tray menu restores Workspace from minimized state",
+      "status": "passed"
+    },
+    {
+      "name": "native-tray: real tray menu opens Quick Capture and native Close hides it",
+      "status": "passed"
+    },
+    {
+      "name": "native-tray: native Workspace Close hides it and tray left-button route restores it",
+      "status": "passed"
+    },
+    {
+      "name": "native-tray: owned running engine stopped after native tray Quit",
+      "status": "passed"
+    },
+    {
+      "name": "native-tray: real tray Exit waits for and exits only the selected test application",
+      "status": "passed"
+    },
+    {
+      "name": "owned running engine exit confirmed by a fixed kernel process handle",
+      "status": "passed"
+    },
+    {
+      "name": "owned application exited normally through its real native tray menu",
+      "status": "passed"
+    },
+    {
+      "name": "no frontend runtime exceptions during native interaction",
+      "status": "passed"
+    }
+  ],
+  "errors": 0,
+  "runtimeErrors": 0,
+  "pickerReturnedNull": true,
+  "appExitCode": 0,
+  "engineStopped": "passed",
+  "trayRoutes": [
+    "registeredTrayCallback"
+  ],
+  "protectedProcesses": {
+    "observed": 1,
+    "unchanged": 1
+  },
+  "cleanup": {
+    "forcedOwnedTermination": false,
+    "mediaServerClosed": true
+  },
+  "limitations": [
+    "Only the isolated controller-owned debug process is an interaction target.",
+    "Registered tray callbacks exercise the real native menu/callback chain; they do not prove a physical pointer hit.",
+    "Unavailable UIAutomation capabilities remain unmeasured, never passed.",
+    "Directory pickers are cancelled without selecting files or changing the clipboard."
+  ],
+  "evidence": [
+    {
+      "label": "controller-isolation-proof",
+      "sha256": "42512dea421ce6a7723020c7f49ecfc26210c83e14b791151e288654c0f65afa"
+    },
+    {
+      "label": "native-dialog",
+      "sha256": "291e80f9400aa63467f672593cfb592e90bfaa2cb27364fe1f2ca17be291a0c1"
+    },
+    {
+      "label": "native-dialog-stdout",
+      "sha256": "36daa08745c4704453276377c4d8c8e4ffc0a16cff67c97e649c8a3b3d69149f"
+    },
+    {
+      "label": "native-dialog-stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "native-tray",
+      "sha256": "65279e21bb705ae1a9547dcf00dc9033a7dee0587d8db2a9cc9eb5e05086fd45"
+    },
+    {
+      "label": "native-tray-stdout",
+      "sha256": "d9780c686703e7c3bad5be924392fee1085e93fa6a0565552f412a9df7b4e9ed"
+    },
+    {
+      "label": "native-tray-stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "native-desktop-smoke-raw",
+      "sha256": "5739eabb5d3875e93e7bb5362c86d5353021564aa1c6c10c1433c7ea4eab4679"
+    }
+  ]
+}

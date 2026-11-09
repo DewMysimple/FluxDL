@@ -1,172 +1,25 @@
+mod commands;
+pub mod diagnostics;
 pub mod engine;
+pub mod errors;
+pub mod events;
 pub mod manager;
 pub mod models;
 pub mod persistence;
+pub mod process;
 #[cfg(windows)]
 pub(crate) mod process_job;
+pub mod transitions;
 mod windows;
 
 use manager::Manager;
-use models::*;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
-use tauri::{Emitter, Manager as TauriManager, State};
+use tauri::{Emitter, Manager as TauriManager};
 
 static EXITING: AtomicBool = AtomicBool::new(false);
-type Backend<'a> = State<'a, Arc<Manager>>;
-
-#[tauri::command]
-async fn get_app_state(backend: Backend<'_>) -> Result<AppSnapshot, String> {
-    Ok(backend.snapshot().await)
-}
-#[tauri::command]
-async fn detect_engines(backend: Backend<'_>) -> Result<EngineDiagnostics, String> {
-    Ok(backend.detect().await)
-}
-#[tauri::command]
-async fn probe_media(backend: Backend<'_>, url: String) -> Result<MediaInfo, String> {
-    backend.probe(&url).await
-}
-#[tauri::command]
-async fn enqueue_download(
-    backend: Backend<'_>,
-    input: EnqueueInput,
-) -> Result<DownloadTask, String> {
-    backend.enqueue(input).await
-}
-#[tauri::command]
-async fn list_tasks(backend: Backend<'_>) -> Result<Vec<DownloadTask>, String> {
-    Ok(backend.snapshot().await.tasks)
-}
-#[tauri::command]
-async fn cancel_task(backend: Backend<'_>, task_id: String) -> Result<(), String> {
-    backend.cancel(&task_id).await
-}
-#[tauri::command]
-async fn retry_task(backend: Backend<'_>, task_id: String) -> Result<(), String> {
-    backend.retry(&task_id).await
-}
-#[tauri::command]
-async fn remove_history_record(backend: Backend<'_>, task_id: String) -> Result<(), String> {
-    backend.remove_history(&task_id).await
-}
-#[tauri::command]
-async fn update_settings(backend: Backend<'_>, settings: Settings) -> Result<Settings, String> {
-    backend.update_settings(settings).await
-}
-#[tauri::command]
-async fn get_settings(backend: Backend<'_>) -> Result<Settings, String> {
-    Ok(backend.snapshot().await.settings)
-}
-#[tauri::command]
-async fn list_history(
-    backend: Backend<'_>,
-    query: Option<String>,
-) -> Result<Vec<DownloadTask>, String> {
-    let query = query.unwrap_or_default().to_lowercase();
-    let mut tasks: Vec<_> = backend
-        .snapshot()
-        .await
-        .tasks
-        .into_iter()
-        .filter(|t| {
-            t.status == TaskStatus::Completed
-                && (t.media.title.to_lowercase().contains(&query)
-                    || t.media.source.to_lowercase().contains(&query))
-        })
-        .collect();
-    tasks.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
-    Ok(tasks)
-}
-#[tauri::command]
-async fn open_download_file(backend: Backend<'_>, task_id: String) -> Result<(), String> {
-    windows::open_recorded_file(backend.task(&task_id).await?, false).await
-}
-#[tauri::command]
-async fn reveal_in_folder(backend: Backend<'_>, task_id: String) -> Result<(), String> {
-    windows::open_recorded_file(backend.task(&task_id).await?, true).await
-}
-#[tauri::command]
-fn show_quick_capture(app: tauri::AppHandle) -> Result<(), String> {
-    windows::show_quick(&app)
-}
-#[tauri::command]
-fn show_workspace(app: tauri::AppHandle) -> Result<(), String> {
-    windows::show_workspace(&app)
-}
-#[tauri::command]
-fn hide_quick_capture(app: tauri::AppHandle) -> Result<(), String> {
-    app.get_webview_window("quick")
-        .ok_or("快速捕获窗口不存在")?
-        .hide()
-        .map_err(|e| e.to_string())
-}
-#[tauri::command]
-fn resize_quick(app: tauri::AppHandle, height: f64) -> Result<(), String> {
-    if !height.is_finite() {
-        return Err("窗口尺寸无效".into());
-    }
-    let w = app
-        .get_webview_window("quick")
-        .ok_or("快速捕获窗口不存在")?;
-    let monitor_max = w
-        .current_monitor()
-        .ok()
-        .flatten()
-        .map(|m| m.size().height as f64 / m.scale_factor() - 64.0)
-        .unwrap_or(720.0);
-    w.set_size(tauri::LogicalSize::new(
-        632.0,
-        height.clamp(260.0, monitor_max.clamp(260.0, 720.0)),
-    ))
-    .map_err(|e| e.to_string())
-}
-#[tauri::command]
-fn request_exit(app: tauri::AppHandle) {
-    graceful_exit(app);
-}
-#[tauri::command]
-async fn open_help(topic: String) -> Result<(), String> {
-    windows::open_help(&topic).await
-}
-#[tauri::command]
-async fn window_action(
-    window: tauri::WebviewWindow,
-    action: String,
-    backend: Backend<'_>,
-) -> Result<(), String> {
-    match action.as_str() {
-        "minimize" => window.minimize(),
-        "maximize" => {
-            if window.is_maximized().map_err(|e| e.to_string())? {
-                window.unmaximize()
-            } else {
-                window.maximize()
-            }
-        }
-        "hide" => window.hide(),
-        "close" => {
-            if window.label() == "quick" {
-                window.hide()
-            } else if backend.has_active().await {
-                window
-                    .emit("workspace-close-requested", ())
-                    .map_err(|e| e.to_string())?;
-                Ok(())
-            } else if backend.snapshot().await.settings.close_behavior == "exit" {
-                graceful_exit(window.app_handle().clone());
-                Ok(())
-            } else {
-                window.hide()
-            }
-        }
-        _ => return Err("未知窗口操作".into()),
-    }
-    .map_err(|e| e.to_string())
-}
-
 pub(crate) fn graceful_exit(app: tauri::AppHandle) {
     if EXITING.swap(true, Ordering::SeqCst) {
         return;
@@ -174,13 +27,24 @@ pub(crate) fn graceful_exit(app: tauri::AppHandle) {
     tauri::async_runtime::spawn(async move {
         if let Some(manager) = app.try_state::<Arc<Manager>>() {
             if let Err(error) = manager.shutdown().await {
-                eprintln!("FluxDL shutdown: {error}");
+                diagnostics::report_error(&error);
                 EXITING.store(false, Ordering::SeqCst);
-                let _ = windows::show_workspace(&app);
-                let _ = app.emit(
+                if let Err(error) = windows::show_workspace(&app) {
+                    diagnostics::report_error(&error);
+                }
+                if let Err(emit_error) = app.emit(
                     "shutdown-failed",
-                    "停止下载进程失败。请重试退出或在任务管理器中检查残留进程。",
-                );
+                    format!("退出未完成：{}", error.safe_text()),
+                ) {
+                    diagnostics::report_error(
+                        &errors::AppError::new(
+                            errors::ErrorCode::WindowAction,
+                            errors::ErrorPhase::Shutdown,
+                            "无法显示退出失败通知",
+                        )
+                        .with_details(emit_error.to_string()),
+                    );
+                }
                 return;
             }
         }
@@ -194,16 +58,30 @@ pub fn run() {
     // This diagnostic port exists only in explicit debug smoke runs, never in release builds.
     #[cfg(debug_assertions)]
     if std::env::var_os("FLUXDL_TEST_DATA_DIR").is_some() {
+        // The smoke launcher sets WEBVIEW2_USER_DATA_FOLDER for this child.
+        // This Tauri runtime does not forward the config data_directory field.
         for window in &mut context.config_mut().app.windows {
             window.additional_browser_args =
                 Some("--remote-debugging-address=127.0.0.1 --remote-debugging-port=9322".into());
-            window.data_directory = Some("FluxDL-Smoke-WebView".into());
         }
     }
-    let application = tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            let _ = windows::show_workspace(app);
+    let builder = tauri::Builder::default();
+    // Explicit debug smoke runs own their data and WebView profile. They must
+    // never redirect to, modify, or terminate an existing user's application.
+    #[cfg(debug_assertions)]
+    let isolated_smoke = std::env::var_os("FLUXDL_TEST_DATA_DIR").is_some();
+    #[cfg(not(debug_assertions))]
+    let isolated_smoke = false;
+    let builder = if isolated_smoke {
+        builder
+    } else {
+        builder.plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            if let Err(error) = windows::show_workspace(app) {
+                diagnostics::report_error(&error);
+            }
         }))
+    };
+    let application = builder
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let app_handle = app.handle().clone();
@@ -224,26 +102,27 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            get_app_state,
-            detect_engines,
-            probe_media,
-            enqueue_download,
-            list_tasks,
-            cancel_task,
-            retry_task,
-            remove_history_record,
-            update_settings,
-            get_settings,
-            list_history,
-            open_download_file,
-            reveal_in_folder,
-            show_quick_capture,
-            show_workspace,
-            hide_quick_capture,
-            resize_quick,
-            request_exit,
-            open_help,
-            window_action
+            commands::get_app_state,
+            commands::get_task_details,
+            commands::detect_engines,
+            commands::probe_media,
+            commands::enqueue_download,
+            commands::list_tasks,
+            commands::cancel_task,
+            commands::retry_task,
+            commands::remove_history_record,
+            commands::update_settings,
+            commands::get_settings,
+            commands::list_history,
+            commands::open_download_file,
+            commands::reveal_in_folder,
+            commands::show_quick_capture,
+            commands::show_workspace,
+            commands::hide_quick_capture,
+            commands::resize_quick,
+            commands::request_exit,
+            commands::open_help,
+            commands::window_action
         ])
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
@@ -252,18 +131,47 @@ pub fn run() {
                 }
                 api.prevent_close();
                 if window.label() == "quick" {
-                    let _ = window.hide();
+                    if let Err(error) = window.hide() {
+                        diagnostics::report_error(
+                            &errors::AppError::new(
+                                errors::ErrorCode::WindowAction,
+                                errors::ErrorPhase::Window,
+                                "无法隐藏快速捕获窗口",
+                            )
+                            .with_details(error.to_string()),
+                        );
+                    }
                     return;
                 }
                 let app = window.app_handle().clone();
                 tauri::async_runtime::spawn(async move {
                     let backend = app.state::<Arc<Manager>>();
                     if backend.has_active().await {
-                        let _ = app.emit_to("workspace", "workspace-close-requested", ());
+                        if let Err(error) =
+                            app.emit_to("workspace", "workspace-close-requested", ())
+                        {
+                            diagnostics::report_error(
+                                &errors::AppError::new(
+                                    errors::ErrorCode::WindowAction,
+                                    errors::ErrorPhase::Window,
+                                    "无法显示后台下载关闭提示",
+                                )
+                                .with_details(error.to_string()),
+                            );
+                        }
                     } else if backend.snapshot().await.settings.close_behavior == "exit" {
                         graceful_exit(app.clone());
                     } else if let Some(w) = app.get_webview_window("workspace") {
-                        let _ = w.hide();
+                        if let Err(error) = w.hide() {
+                            diagnostics::report_error(
+                                &errors::AppError::new(
+                                    errors::ErrorCode::WindowAction,
+                                    errors::ErrorPhase::Window,
+                                    "无法将工作台隐藏到后台",
+                                )
+                                .with_details(error.to_string()),
+                            );
+                        }
                     }
                 });
             }

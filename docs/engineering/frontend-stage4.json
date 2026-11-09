@@ -1,0 +1,343 @@
+{
+  "schemaVersion": 2,
+  "phase": "stage-4",
+  "generatedAt": "2026-11-09T05:47:25.523Z",
+  "environment": {
+    "node": "v24.16.0",
+    "platform": "win32",
+    "osRelease": "10.0.26200",
+    "totalMemoryBytes": 34138726400,
+    "renderer": "ReactDOM development build + jsdom; no StrictMode for benchmark"
+  },
+  "method": {
+    "storeSamples": 20,
+    "reactSamples": 5,
+    "warmupReactUpdates": 1,
+    "changedTask": "one active task while History displays only completed tasks",
+    "taskRowCounter": "transparent MoreHorizontal wrapper; History renders it once per TaskRow",
+    "decodingOutsideTimedUpdate": true,
+    "quantiles": "nearest-rank",
+    "workloads": {
+      "measurements": "complete snapshots, same task fixture as before/stage-2 with sessionId/revision protocol fields added",
+      "deltaMeasurements": "actual production applyEvent/reducer with exact taskProgress envelope; synthetic local fixture, no mocked reducer and no transport timing"
+    },
+    "limitations": [
+      "jsdom has no native layout, painting, WebView2 IPC transport or FPS measurement",
+      "React Profiler adds instrumentation overhead; comparative development timings",
+      "minimal metadata and empty logs are a controlled lower-bound fixture, not production telemetry",
+      "full snapshots recreate every task; deltas recreate only the affected task, and these workloads are reported separately",
+      "five React samples are a small comparative sample; p95 is the maximum observed sample",
+      "immutable Record replacement still shallow-copies tasksById; not a constant-time persistent data structure"
+    ]
+  },
+  "measurements": [
+    {
+      "workload": "fullSnapshot",
+      "taskCount": 100,
+      "visibleHistoryRows": 99,
+      "changedDomainTasks": 1,
+      "recreatedTaskRecordsPerSnapshot": 100,
+      "snapshotPayloadBytes": 67381,
+      "storeNotificationsFor20Updates": 20,
+      "storeUpdateMs": {
+        "samples": 20,
+        "p50": 0.2817999999999756,
+        "p95": 0.33619999999996253,
+        "min": 0.268100000000004,
+        "max": 0.35190000000000055
+      },
+      "snapshotSerializeMs": {
+        "samples": 20,
+        "p50": 0.10769999999990887,
+        "p95": 0.11210000000005493,
+        "min": 0.10350000000005366,
+        "max": 0.12439999999992324
+      },
+      "reactActualDurationMs": {
+        "samples": 5,
+        "p50": 0,
+        "p95": 0,
+        "min": 0,
+        "max": 0
+      },
+      "updateThroughEffectsMs": {
+        "samples": 5,
+        "p50": 0.3289999999999509,
+        "p95": 1.0861999999999625,
+        "min": 0.3026999999999589,
+        "max": 1.0861999999999625
+      },
+      "unrelatedHistoryRowRendersPerUpdate": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "reactCommitCounts": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "fullSnapshot",
+      "taskCount": 1000,
+      "visibleHistoryRows": 999,
+      "changedDomainTasks": 1,
+      "recreatedTaskRecordsPerSnapshot": 1000,
+      "snapshotPayloadBytes": 670381,
+      "storeNotificationsFor20Updates": 20,
+      "storeUpdateMs": {
+        "samples": 20,
+        "p50": 2.723299999999881,
+        "p95": 4.685399999999845,
+        "min": 2.468399999999974,
+        "max": 6.1008999999999105
+      },
+      "snapshotSerializeMs": {
+        "samples": 20,
+        "p50": 1.2717999999999847,
+        "p95": 1.348700000000008,
+        "min": 1.2538999999999305,
+        "max": 1.606800000000021
+      },
+      "reactActualDurationMs": {
+        "samples": 5,
+        "p50": 0,
+        "p95": 0,
+        "min": 0,
+        "max": 0
+      },
+      "updateThroughEffectsMs": {
+        "samples": 5,
+        "p50": 3.656099999999924,
+        "p95": 7.037700000000086,
+        "min": 3.3011999999998807,
+        "max": 7.037700000000086
+      },
+      "unrelatedHistoryRowRendersPerUpdate": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "reactCommitCounts": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "fullSnapshot",
+      "taskCount": 5000,
+      "visibleHistoryRows": 4999,
+      "changedDomainTasks": 1,
+      "recreatedTaskRecordsPerSnapshot": 5000,
+      "snapshotPayloadBytes": 3362381,
+      "storeNotificationsFor20Updates": 20,
+      "storeUpdateMs": {
+        "samples": 20,
+        "p50": 14.858500000000276,
+        "p95": 16.457300000000032,
+        "min": 12.495899999999892,
+        "max": 16.485699999999724
+      },
+      "snapshotSerializeMs": {
+        "samples": 20,
+        "p50": 6.2806000000000495,
+        "p95": 6.524199999999837,
+        "min": 6.100599999999758,
+        "max": 6.654099999999744
+      },
+      "reactActualDurationMs": {
+        "samples": 5,
+        "p50": 0,
+        "p95": 0,
+        "min": 0,
+        "max": 0
+      },
+      "updateThroughEffectsMs": {
+        "samples": 5,
+        "p50": 19.446500000000015,
+        "p95": 19.598399999999856,
+        "min": 16.97069999999985,
+        "max": 19.598399999999856
+      },
+      "unrelatedHistoryRowRendersPerUpdate": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "reactCommitCounts": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "deltaMeasurements": [
+    {
+      "workload": "taskProgressEvent",
+      "taskCount": 100,
+      "visibleHistoryRows": 99,
+      "changedDomainTasks": 1,
+      "recreatedTaskRecordsPerEvent": 1,
+      "eventPayloadBytes": 252,
+      "storeNotificationsFor20Updates": 20,
+      "storeApplyEventMs": {
+        "samples": 20,
+        "p50": 0.004200000000082582,
+        "p95": 0.0442000000000462,
+        "min": 0.0020999999999276042,
+        "max": 0.33560000000011314
+      },
+      "eventSerializeMs": {
+        "samples": 20,
+        "p50": 0.0006000000000767614,
+        "p95": 0.0019999999999527063,
+        "min": 0.0005999999998493877,
+        "max": 0.0019999999999527063
+      },
+      "reactActualDurationMs": {
+        "samples": 5,
+        "p50": 0,
+        "p95": 0,
+        "min": 0,
+        "max": 0
+      },
+      "updateThroughEffectsMs": {
+        "samples": 5,
+        "p50": 0.022699999999986176,
+        "p95": 0.054300000000012005,
+        "min": 0.019199999999955253,
+        "max": 0.054300000000012005
+      },
+      "unrelatedHistoryRowRendersPerUpdate": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "reactCommitCounts": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "taskProgressEvent",
+      "taskCount": 1000,
+      "visibleHistoryRows": 999,
+      "changedDomainTasks": 1,
+      "recreatedTaskRecordsPerEvent": 1,
+      "eventPayloadBytes": 252,
+      "storeNotificationsFor20Updates": 20,
+      "storeApplyEventMs": {
+        "samples": 20,
+        "p50": 0.1467000000002372,
+        "p95": 1.9447000000000116,
+        "min": 0.13140000000021246,
+        "max": 2.7264000000000124
+      },
+      "eventSerializeMs": {
+        "samples": 20,
+        "p50": 0.001299999999901047,
+        "p95": 0.0037999999999556167,
+        "min": 0.0007000000000516593,
+        "max": 0.003899999999703141
+      },
+      "reactActualDurationMs": {
+        "samples": 5,
+        "p50": 0,
+        "p95": 0,
+        "min": 0,
+        "max": 0
+      },
+      "updateThroughEffectsMs": {
+        "samples": 5,
+        "p50": 1.1400000000003274,
+        "p95": 1.5417999999999665,
+        "min": 0.7609999999999673,
+        "max": 1.5417999999999665
+      },
+      "unrelatedHistoryRowRendersPerUpdate": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "reactCommitCounts": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "workload": "taskProgressEvent",
+      "taskCount": 5000,
+      "visibleHistoryRows": 4999,
+      "changedDomainTasks": 1,
+      "recreatedTaskRecordsPerEvent": 1,
+      "eventPayloadBytes": 252,
+      "storeNotificationsFor20Updates": 20,
+      "storeApplyEventMs": {
+        "samples": 20,
+        "p50": 0.9053999999996449,
+        "p95": 1.00840000000062,
+        "min": 0.8789999999999054,
+        "max": 1.064900000000307
+      },
+      "eventSerializeMs": {
+        "samples": 20,
+        "p50": 0.0013000000008105417,
+        "p95": 0.0033000000003085006,
+        "min": 0.0010999999994965037,
+        "max": 0.0036000000000058208
+      },
+      "reactActualDurationMs": {
+        "samples": 5,
+        "p50": 0,
+        "p95": 0,
+        "min": 0,
+        "max": 0
+      },
+      "updateThroughEffectsMs": {
+        "samples": 5,
+        "p50": 4.18789999999899,
+        "p95": 4.240299999999479,
+        "min": 3.5489999999990687,
+        "max": 4.240299999999479
+      },
+      "unrelatedHistoryRowRendersPerUpdate": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "reactCommitCounts": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ]
+}

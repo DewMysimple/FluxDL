@@ -1,0 +1,78 @@
+{
+  "method": "Identical current DOM, current extracted styles versus HEAD original stylesheet; animations/caret disabled; browser screenshots compared byte-for-byte",
+  "checks": [
+    {
+      "view": "home",
+      "theme": "dark",
+      "pixelIdentical": true,
+      "horizontalOverflow": 0
+    },
+    {
+      "view": "queue",
+      "theme": "dark",
+      "pixelIdentical": true,
+      "horizontalOverflow": 0
+    },
+    {
+      "view": "history",
+      "theme": "dark",
+      "pixelIdentical": true,
+      "horizontalOverflow": 0
+    },
+    {
+      "view": "settings",
+      "theme": "dark",
+      "pixelIdentical": true,
+      "horizontalOverflow": 0
+    },
+    {
+      "view": "narrow",
+      "theme": "dark",
+      "pixelIdentical": true,
+      "horizontalOverflow": 0
+    },
+    {
+      "view": "quick",
+      "theme": "dark",
+      "pixelIdentical": true,
+      "horizontalOverflow": 0
+    },
+    {
+      "view": "home",
+      "theme": "light",
+      "pixelIdentical": true,
+      "horizontalOverflow": 0
+    },
+    {
+      "view": "queue",
+      "theme": "light",
+      "pixelIdentical": true,
+      "horizontalOverflow": 0
+    },
+    {
+      "view": "history",
+      "theme": "light",
+      "pixelIdentical": true,
+      "horizontalOverflow": 0
+    },
+    {
+      "view": "settings",
+      "theme": "light",
+      "pixelIdentical": true,
+      "horizontalOverflow": 0
+    },
+    {
+      "view": "narrow",
+      "theme": "light",
+      "pixelIdentical": true,
+      "horizontalOverflow": 0
+    },
+    {
+      "view": "quick",
+      "theme": "light",
+      "pixelIdentical": true,
+      "horizontalOverflow": 0
+    }
+  ],
+  "errors": []
+}

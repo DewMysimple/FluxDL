@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
     pub download_dir: String,
@@ -35,7 +35,7 @@ impl Default for Settings {
     }
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct EngineInfo {
     pub path: Option<String>,
@@ -44,7 +44,7 @@ pub struct EngineInfo {
     pub available: bool,
     pub message: String,
 }
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct EngineDiagnostics {
     pub ytdlp: EngineInfo,
@@ -145,7 +145,16 @@ pub struct DownloadTask {
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSnapshot {
+    pub session_id: String,
+    pub revision: u64,
     pub settings: Settings,
     pub engines: EngineDiagnostics,
     pub tasks: Vec<DownloadTask>,
+}
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskDetails {
+    pub session_id: String,
+    pub revision: u64,
+    pub task: DownloadTask,
 }

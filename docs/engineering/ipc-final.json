@@ -1,0 +1,186 @@
+{
+  "schemaVersion": 1,
+  "label": "final-expanded",
+  "generatedAt": "2026-11-09T06:45:11.529Z",
+  "runId": "2026-11-09T06-43-22-568Z",
+  "originalReportSha256": "d53d845164b3f842bd72f80bb4cccf29d8cec9ce3f640e580bd963aa56fd7f5a",
+  "passedChecks": 15,
+  "errors": [],
+  "observations": [
+    {
+      "window": "workspace",
+      "event": "app-state-changed",
+      "type": "settingsUpdated",
+      "count": 2,
+      "payloadBytes": {
+        "p50": 442,
+        "p95": 444,
+        "min": 442,
+        "max": 444
+      },
+      "totalPayloadBytes": 886,
+      "peakOneSecondCount": 1
+    },
+    {
+      "window": "workspace",
+      "event": "app-state-changed",
+      "type": "taskUpsert",
+      "count": 31,
+      "payloadBytes": {
+        "p50": 996,
+        "p95": 1470,
+        "min": 971,
+        "max": 1637
+      },
+      "totalPayloadBytes": 36269,
+      "peakOneSecondCount": 4
+    },
+    {
+      "window": "workspace",
+      "event": "app-state-changed",
+      "type": "taskProgress",
+      "count": 44,
+      "payloadBytes": {
+        "p50": 347,
+        "p95": 590,
+        "min": 326,
+        "max": 590
+      },
+      "totalPayloadBytes": 17211,
+      "peakOneSecondCount": 4
+    },
+    {
+      "window": "workspace",
+      "event": "app-state-changed",
+      "type": "fileAvailabilityUpdated",
+      "count": 5,
+      "payloadBytes": {
+        "p50": 188,
+        "p95": 189,
+        "min": 187,
+        "max": 189
+      },
+      "totalPayloadBytes": 940,
+      "peakOneSecondCount": 1
+    },
+    {
+      "window": "workspace",
+      "event": "app-state-changed",
+      "type": "checkpoint",
+      "count": 7,
+      "payloadBytes": {
+        "p50": 97,
+        "p95": 97,
+        "min": 96,
+        "max": 97
+      },
+      "totalPayloadBytes": 678,
+      "peakOneSecondCount": 1
+    },
+    {
+      "window": "workspace",
+      "event": "app-state-changed",
+      "type": "taskRemoved",
+      "count": 1,
+      "payloadBytes": {
+        "p50": 146,
+        "p95": 146,
+        "min": 146,
+        "max": 146
+      },
+      "totalPayloadBytes": 146,
+      "peakOneSecondCount": 1
+    },
+    {
+      "window": "quick",
+      "event": "app-state-changed",
+      "type": "settingsUpdated",
+      "count": 2,
+      "payloadBytes": {
+        "p50": 442,
+        "p95": 444,
+        "min": 442,
+        "max": 444
+      },
+      "totalPayloadBytes": 886,
+      "peakOneSecondCount": 1
+    },
+    {
+      "window": "quick",
+      "event": "app-state-changed",
+      "type": "taskUpsert",
+      "count": 31,
+      "payloadBytes": {
+        "p50": 996,
+        "p95": 1470,
+        "min": 971,
+        "max": 1637
+      },
+      "totalPayloadBytes": 36269,
+      "peakOneSecondCount": 4
+    },
+    {
+      "window": "quick",
+      "event": "app-state-changed",
+      "type": "taskProgress",
+      "count": 44,
+      "payloadBytes": {
+        "p50": 347,
+        "p95": 590,
+        "min": 326,
+        "max": 590
+      },
+      "totalPayloadBytes": 17211,
+      "peakOneSecondCount": 4
+    },
+    {
+      "window": "quick",
+      "event": "app-state-changed",
+      "type": "fileAvailabilityUpdated",
+      "count": 5,
+      "payloadBytes": {
+        "p50": 188,
+        "p95": 189,
+        "min": 187,
+        "max": 189
+      },
+      "totalPayloadBytes": 940,
+      "peakOneSecondCount": 1
+    },
+    {
+      "window": "quick",
+      "event": "app-state-changed",
+      "type": "checkpoint",
+      "count": 7,
+      "payloadBytes": {
+        "p50": 97,
+        "p95": 97,
+        "min": 96,
+        "max": 97
+      },
+      "totalPayloadBytes": 678,
+      "peakOneSecondCount": 1
+    },
+    {
+      "window": "quick",
+      "event": "app-state-changed",
+      "type": "taskRemoved",
+      "count": 1,
+      "payloadBytes": {
+        "p50": 146,
+        "p95": 146,
+        "min": 146,
+        "max": 146
+      },
+      "totalPayloadBytes": 146,
+      "peakOneSecondCount": 1
+    }
+  ],
+  "limitations": [
+    "Real Tauri event payload UTF-8 sizes measured inside each WebView; excludes transport framing and encoding overhead.",
+    "Event listener installed before smoke actions; early application startup events are not included.",
+    "Peak count includes semantic events for that type; legacy snapshots do not identify progress versus semantic changes.",
+    "The smoke has a small number of tasks; large-history payload is measured separately by engineering_bench.",
+    "Windows background scheduling may batch delivery; observed peak is not the configured backend tick rate."
+  ]
+}

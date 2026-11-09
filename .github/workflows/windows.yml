@@ -20,8 +20,11 @@ jobs:
           workspaces: src-tauri
       - run: npm ci
       - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
       - run: npm test
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - run: npm run lint:rust
       - run: npm run test:rust
       - run: ./scripts/test-queue.ps1
       - run: python scripts/collect-licenses.py

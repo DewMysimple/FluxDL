@@ -1,0 +1,132 @@
+.quick-application {
+  min-height: 100dvh;
+  height: auto;
+  background: transparent;
+}
+.quick-shell {
+  background: linear-gradient(125deg, #b6a2ec08, transparent 70%), var(--bg);
+  border: 1px solid #8c829d4d;
+  border-radius: 14px;
+  width: 100%;
+  min-height: 260px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 #ffffff08;
+}
+.quick-title {
+  display: flex;
+  align-items: center;
+  padding: 17px 21px 13px;
+  gap: 14px;
+  user-select: none;
+}
+.quick-caption {
+  font-size: 11px;
+  color: var(--muted);
+  border-left: 1px solid var(--border);
+  padding-left: 13px;
+  letter-spacing: 0.02em;
+}
+.quick-title-actions {
+  margin-left: auto;
+}
+.quick-content {
+  padding: 0 20px 14px;
+}
+.quick-input {
+  padding: 13px 14px;
+}
+.quick-input .capture-foot {
+  font-size: 9px;
+}
+.quick-input .paste-hint {
+  display: none;
+}
+.quick-input input {
+  font-size: 14px;
+}
+.quick-input .input-link-icon {
+  width: 23px;
+}
+.quick-input .parse-button {
+  font-size: 11px;
+  padding: 0 9px;
+}
+.quick-input .keycap {
+  display: none;
+}
+.quick-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px 13px;
+  border-top: 1px solid var(--border-soft);
+  gap: 12px;
+}
+.quick-footer > span {
+  font-size: 9px;
+  color: var(--muted);
+}
+.quick-footer kbd {
+  margin-right: 4px;
+  font-size: 9px;
+}
+.quick-footer .text-button {
+  color: var(--accent);
+  font-size: 10px;
+}
+.quick-result {
+  padding-top: 12px;
+  max-height: 470px;
+  overflow: auto;
+  padding-right: 2px;
+}
+.quick-result > .text-button {
+  margin-bottom: 10px;
+}
+.quick-result .media-options {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  column-gap: 18px;
+}
+.quick-result .media-preview {
+  grid-column: 1;
+  grid-row: 1;
+}
+.quick-result .media-heading {
+  grid-column: 2;
+  grid-row: 1;
+  margin: 0;
+}
+.quick-result .media-heading h2 {
+  font-size: 14px;
+  line-height: 1.6;
+  max-height: 68px;
+  overflow: hidden;
+}
+.quick-result .media-heading .eyebrow {
+  font-size: 9px;
+}
+.quick-result .media-options > *:not(.media-preview):not(.media-heading) {
+  grid-column: 1 / -1;
+}
+.quick-result .mode-segment {
+  margin: 14px 0 3px;
+}
+.quick-result .field {
+  margin: 12px 0;
+}
+.quick-result .disclosure {
+  margin-top: 6px;
+}
+.quick-result .save-location {
+  padding-top: 5px;
+}
+.quick-result .notice {
+  margin: 9px 0;
+}
+.quick-result .legal-note {
+  margin: 8px 0 4px;
+}
+.quick-result .audio-note {
+  padding-top: 10px;
+}

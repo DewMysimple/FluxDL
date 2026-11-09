@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "runId": "2026-11-09T05-54-04-911Z",
+  "originalReportSha256": "79879a3fe53305bfabf0f1d02cf8279b9f3832aedf8dce62eda8e87f2781689b",
+  "checks": [
+    "existing local engine configured and detected",
+    "Quick Capture UI parses real media and downloads real file",
+    "serial queue keeps second task waiting and cancels queued task",
+    "workspace close offers background behavior; real running process cancels",
+    "cancelled task retries and completes",
+    "actual HTTP failure has readable error and retry works",
+    "theme and density settings synchronize across native windows",
+    "missing file detected; removing history never removes local media",
+    "real application restart preserves settings and history",
+    "forced application termination restores active task as interrupted",
+    "no frontend runtime exceptions"
+  ],
+  "errors": [],
+  "privacy": "Local executable, database and output paths omitted; event sizes are reported separately."
+}

@@ -3,11 +3,13 @@ import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import type {
   AppSnapshot,
+  AppEvent,
   DownloadTask,
   EngineDiagnostics,
   EnqueueInput,
   MediaInfo,
   Settings,
+  TaskDetailsResult,
 } from "./types";
 export const isDesktop = "__TAURI_INTERNALS__" in window;
 const missingEngine = {
@@ -18,6 +20,8 @@ const missingEngine = {
   message: "请在桌面应用中检测本地引擎",
 };
 export const previewSnapshot: AppSnapshot = {
+  sessionId: "browser-preview",
+  revision: 0,
   settings: {
     downloadDir: "",
     enginePath: "",
@@ -47,7 +51,7 @@ async function call<T>(
     throw new Error(
       "当前为浏览器预览。请运行 FluxDL 桌面应用以使用本地引擎、下载和系统功能。",
     );
-  return invoke<T>(name, args);
+  return invoke<T>(name, { ...args, errorFormat: "structured" });
 }
 export const api = {
   snapshot: () =>
@@ -65,6 +69,8 @@ export const api = {
     call<Settings>("update_settings", { settings }),
   open: (taskId: string) => call<void>("open_download_file", { taskId }),
   reveal: (taskId: string) => call<void>("reveal_in_folder", { taskId }),
+  details: (taskId: string) =>
+    call<TaskDetailsResult>("get_task_details", { taskId }),
   quick: () => call<void>("show_quick_capture"),
   workspace: () => call<void>("show_workspace"),
   hideQuick: () => call<void>("hide_quick_capture"),
@@ -86,8 +92,8 @@ export const api = {
     });
     return typeof path === "string" ? path : null;
   },
-  onSnapshot: (fn: (snapshot: AppSnapshot) => void) =>
-    listen<AppSnapshot>("app-state-updated", (e) => fn(e.payload)),
+  onChange: (fn: (event: AppEvent) => void) =>
+    listen<AppEvent>("app-state-changed", (e) => fn(e.payload)),
   onClose: (fn: () => void) => listen("workspace-close-requested", fn),
   onShutdownFailed: (fn: (message: string) => void) =>
     listen<string>("shutdown-failed", (e) => fn(e.payload)),

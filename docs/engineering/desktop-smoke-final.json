@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "runId": "2026-11-09T06-43-22-568Z",
+  "originalReportSha256": "d53d845164b3f842bd72f80bb4cccf29d8cec9ce3f640e580bd963aa56fd7f5a",
+  "checks": [
+    "legacy database preserves tasks/settings and interrupts queued work without auto-resume",
+    "existing local engine configured and detected",
+    "real IPC preserves legacy String errors and negotiates safe structured errors",
+    "Quick Capture UI parses real media and downloads real file",
+    "serial queue keeps second task waiting and cancels queued task",
+    "workspace close offers background behavior; real running process cancels",
+    "cancelled task retries and completes",
+    "actual HTTP failure has readable error and retry works",
+    "real MP3 extraction is ffprobe verified and task details/logs remain available",
+    "theme and density settings synchronize across native windows",
+    "missing file detected; removing history never removes local media",
+    "real application restart preserves settings and history",
+    "forced application termination restores active task as interrupted",
+    "v1 to v2 upgrade retains every original row and unknown JSON fields after real app lifecycle",
+    "no frontend runtime exceptions"
+  ],
+  "errors": [],
+  "upgrade": {
+    "originalSchema": 1,
+    "originalRows": 6,
+    "visibleLegacyRows": 5,
+    "schemaAfter": 2,
+    "originalRowsRetained": true,
+    "unknownFieldsRetained": true,
+    "unknownStateRawRetained": true
+  },
+  "privacy": "Local executable, database and output paths omitted; event sizes are reported separately."
+}

@@ -1,0 +1,98 @@
+.error-toast {
+  position: fixed;
+  z-index: 100;
+  bottom: 43px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--elevated);
+  border: 1px solid #e995a24d;
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 13px 13px 16px;
+  max-width: calc(100% - 40px);
+  width: max-content;
+  color: var(--danger);
+  font-size: var(--font-control);
+  line-height: 1.8;
+  animation: fadein 0.15s;
+}
+.error-toast > span {
+  max-width: 520px;
+  overflow-wrap: anywhere;
+}
+.error-toast > svg {
+  margin-top: 2px;
+}
+.error-toast .icon-button {
+  margin: -3px 0 -3px 4px;
+}
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: #05050ca6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(5px);
+  padding: 24px;
+  animation: fadein 0.15s;
+}
+.modal {
+  width: 450px;
+  max-width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 21px;
+  box-shadow: var(--shadow);
+  outline: 0;
+}
+.modal-title {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-title h2 {
+  font-size: 16px;
+}
+.modal-description {
+  color: var(--secondary);
+  font-size: var(--font-control);
+  line-height: 1.9;
+  margin: 15px 0 22px;
+  overflow-wrap: anywhere;
+}
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.danger-button {
+  color: var(--danger);
+  border-color: #e995a240;
+  background: #e995a209;
+}
+.danger-button:hover:not(:disabled) {
+  background: #e995a215;
+  border-color: var(--danger);
+}
+.close-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.close-choices .button {
+  min-height: 39px;
+}
+.modal-footnote {
+  text-align: center;
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 17px;
+  line-height: 1.7;
+}

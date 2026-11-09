@@ -1,3 +1,4 @@
+import { seedApp } from "./fixtures";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   act,
@@ -57,7 +58,7 @@ const setup = (tasks: DownloadTask[] = []) => {
     tasks,
   };
   vi.mocked(api.snapshot).mockResolvedValue(state);
-  useApp.setState({ snapshot: state, loading: false, error: null });
+  seedApp(state, false);
   return state;
 };
 
@@ -116,13 +117,11 @@ describe("backend-authoritative desktop views", () => {
     }) as HTMLInputElement;
     fireEvent.change(input, { target: { value: "C:\\My chosen folder" } });
     await act(async () =>
-      useApp
-        .getState()
-        .setSnapshot({
-          ...state,
-          settings: { ...state.settings },
-          tasks: [task("downloading")],
-        }),
+      useApp.getState().setSnapshot({
+        ...state,
+        settings: { ...state.settings },
+        tasks: [task("downloading")],
+      }),
     );
     expect(input.value).toBe("C:\\My chosen folder");
     expect(screen.getByText("有尚未保存的更改")).toBeTruthy();

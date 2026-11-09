@@ -1,5 +1,7 @@
 # FluxDL 0.1.0 验证记录
 
+此页保留MVP当时的实际结果。0.2.0工程优化的当前命令、增量数据/IPC、性能和验证边界见[本轮验证报告](engineering/0.2.0-validation-report.md)，不能用本页的旧测试数量或“未配置ESLint”判断当前工程。
+
 验证日期：2026-11-09（Asia/Shanghai）。主机：Windows 11 x64 / 10.0.26200；Node 24.16.0、npm 12.0.1、Rust 1.97.0 MSVC、Visual Studio 2026 C++ 工具链、Edge WebView2。使用用户原有 yt-dlp 2026.07.04、FFmpeg/FFprobe n8.0.1；未下载或捆绑媒体引擎。
 
 以下结果来自 MVP 开发期间的实际验证，执行时工程尚未首次提交，没有可引用的 Git commit。本轮准备首次提交仅核对原始报告、导出脱敏快照并整理文档，未重新执行下列测试或构建。可提交的 JSON 快照与本机原始报告保持字段、数值、真实 URL、runId 和通过值不变，仅将项目根目录及工具绝对路径替换为明确占位符；映射、原始文件摘要和核对方式见[快照说明](validation/README.md)。

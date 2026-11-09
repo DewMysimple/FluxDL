@@ -18,6 +18,8 @@ FFmpeg 与 FFprobe 优先查用户指定目录（也接受 ffmpeg.exe 路径，�
 
 下载通过带专用标记的 JSON `--progress-template` 报告实际字节数、总大小、速度与 ETA，未知大小保持不确定进度。分离音视频的进度是当前下载流的进度，不承诺它代表合并文件的整体百分比。后处理独立展示。最终路径来自 `--print after_move:...%(filepath)j`，成功退出后检查文件真实存在且位于任务保存目录中，才标为完成。
 
+0.2将有界progress字段和format身份构造为一个对象，再一次性`j`序列化；不能逐字段拼JSON，因为yt-dlp对缺失值会先输出裸NA。parser兼容新dotted keys与旧flat记录，缺失total/ETA保持unknown，空/无关对象拒绝；不对整行做NA文本替换。每路输出保留序号、运行attempt及已退出stream护栏，新流可真实reset。真实2026.07.04快慢下载29条记录和最终15项桌面回归已通过，证据见[0.2验证](engineering/0.2.0-validation-report.md)。
+
 Generic 解析器可能接受任意文件链接，FluxDL 在元数据层只接受明确的音视频容器扩展名白名单；程序、脚本、快捷方式、网页和普通文档不会作为媒体格式入队。文件打开入口还会再次检查扩展名与真实保存路径。
 
 文件名采用 yt-dlp 的 Windows 安全文件名规则、受限标题与媒体 ID 长度，并附任务 UUID 避免不同任务覆盖。取消可能留下 `.part` 或合并中的临时文件；重试复用任务输出模板，由 yt-dlp 自己处理已下载分片，界面不会声称实现了暂停。
@@ -31,6 +33,8 @@ Generic 解析器可能接受任意文件链接，FluxDL 在元数据层只接�
 官方参考：[yt-dlp CLI](https://github.com/yt-dlp/yt-dlp)、[EJS 安装指引](https://github.com/yt-dlp/yt-dlp/wiki/EJS)、[FFmpeg 许可](https://ffmpeg.org/legal.html)。
 
 ## 真实后端联调
+
+下列公网文件数字保留0.1 MVP当时的实测，未在0.2优化中重复请求。0.2使用本地原创HTTP素材的真实视频/MP3、双窗口及进程回归，当前结果见工程验证报告。
 
 从项目根目录运行（需要本机真实 yt-dlp、FFmpeg 与网络）：
 

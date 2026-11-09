@@ -42,9 +42,11 @@ npm run desktop:build
 npm run release:stage
 ```
 
-`desktop:build` 使用 Tauri 2 构建 Windows x64 NSIS 安装包，输出为 `src-tauri/target/release/bundle/nsis/FluxDL_0.1.0_x64-setup.exe`，程序为 `src-tauri/target/release/fluxdl.exe`。`release:stage` 将安装包、程序、许可证和 SHA-256 校验值整理到项目根目录的 `release/`。构建工具首次可能下载 NSIS/WebView2 官方打包资源；安装器仅在缺少 WebView2 时提供微软运行时引导安装，这与下载媒体引擎是两件事。版本未签名；这不是内置全依赖的绿色单文件版。
+`desktop:build` 使用 Tauri 2 构建 Windows x64 NSIS 安装包，输出为 `src-tauri/target/release/bundle/nsis/FluxDL_0.2.0_x64-setup.exe`，程序为 `src-tauri/target/release/fluxdl.exe`。`release:stage` 将安装包、程序、许可证和 SHA-256 校验值整理到项目根目录的 `release/`。本轮保留用户正在运行的0.1发行文件，不执行该复制步骤；新产物保留在target中。构建工具首次可能下载 NSIS/WebView2 官方打包资源；安装器仅在缺少 WebView2 时提供微软运行时引导安装，这与下载媒体引擎是两件事。版本未签名；这不是内置全依赖的绿色单文件版。
 
-CI 配置在 `.github/workflows/windows.yml`，在 push、pull request 或手动运行时执行类型、前端/Rust 测试、真实 worker fixture 和 NSIS 构建，上传安装包。原 MVP 的本地验收记录不代表远程 CI 结果；远程运行状态以仓库的 Actions 为准。
+CI 配置在 `.github/workflows/windows.yml`，在 push、pull request 或手动运行时执行类型、lint、格式、Clippy、前端/Rust 测试、真实 worker fixture 和 NSIS 构建，上传安装包。本轮0.2工程优化按任务要求保留本地修改、不commit/push，没有触发或声称远程CI通过。
+
+本地检查：`npm run typecheck`、`npm run lint`、`npm run format:check`、`npm test`、`npm run build`；Rust：`npm run format:rust`、`npm run lint:rust`、`npm run test:rust`，以及`.\scripts\test-queue.ps1`。`npm run test:styles`复现12项固定浏览器CSS等值检查。三档性能基准与实际结果见[工程基线](docs/engineering/0.2.0-performance-baseline.md)、[复测](docs/engineering/0.2.0-performance-after.md)和[验证报告](docs/engineering/0.2.0-validation-report.md)。
 
 ## 可重跑的真实联调
 
@@ -54,23 +56,23 @@ CI 配置在 `.github/workflows/windows.yml`，在 push、pull request 或手动
 cargo run --manifest-path src-tauri/Cargo.toml --example engine_smoke -- 'E:\VedioDownload\yt-dlp.exe' 'https://download.blender.org/peach/trailer/trailer_400p.ogg' 'E:\Software Development\FluxDL\artifacts'
 ```
 
-完整桌面烟雾测试使用本地 FFmpeg 生成的原创测试图与正弦音轨、真实 yt-dlp 和实际 WebView2，不 Mock IPC 或下载。先安装并确保 FFmpeg 在 PATH，关闭其他 FluxDL 实例：
+完整桌面烟雾测试使用本地 FFmpeg 生成的原创测试图与正弦音轨、真实 yt-dlp 和实际 WebView2，不 Mock IPC 或下载。先确保 FFmpeg 在 PATH；脚本使用隔离debug数据和WebView profile，可与已有发行版共存，不应停止用户正在运行的实例：
 
 ```powershell
 npx tauri build --debug --no-bundle
 node scripts/desktop-smoke.mjs 'E:\VedioDownload\yt-dlp.exe'
 ```
 
-它在 `artifacts/e2e-data/` 和 `artifacts/e2e-downloads/` 创建独立数据目录，测试两窗口、取消、错误重试、主题同步、历史、实际重启及强制结束后中断状态。**该测试会强制终止它自己创建的应用进程树以模拟异常退出**。仅当 debug 构建显式设置 `FLUXDL_TEST_DATA_DIR` 时启用本地诊断端口；release 中没有此入口。
+它在 `artifacts/e2e-data/` 和 `artifacts/e2e-downloads/` 创建独立数据目录，测试两窗口、取消、错误重试、主题同步、历史、实际重启及强制结束后中断状态。**该测试会强制终止它自己创建的应用进程树以模拟异常退出**。仅当 debug 构建显式设置 `FLUXDL_TEST_DATA_DIR` 时启用本地诊断端口并跳过单实例重定向；release 中没有此入口。可选旧库seed、真实MP3和错误协议检查见工程验证报告；原生目录取消/托盘菜单补充工具及能力边界见[原生验证](docs/engineering/native-smoke.md)。
 
 `scripts/test-queue.ps1` 编译源码中的确定性假引擎，只用于测试，覆盖串行、等待/运行取消、错误重试和安全退出。默认 `cargo test` 中该项被标为 ignored，需脚本显式运行。它不替代真实媒体联调。
 
 ## 数据、隐私与安全
 
 - Rust 管理 SQLite，位置为系统 AppData 下 `io.fluxdl.desktop/fluxdl.sqlite3`（Windows 通常在 `%APPDATA%`）。任务来源链接和保存位置只在本机保存，不上传。分享诊断前仍应自行检查内容。
-- 引擎日志移除 URL query/用户信息，最多100行，每行1600字符；两路输出持续消费，单行内存有上限。
-- 进度最多约4Hz推送、约2秒保存一次，状态变化同步保存。没有随机进度或前端定时伪造。
-- 重启将所有非终态任务（含等待中）标为「已中断」，由用户主动重试。损坏数据库先保留带时间戳备份，再新建库；磁盘/权限错误会显示可读提示。
+- 引擎日志移除URL凭据/query、Cookie及认证Header等敏感值，最多100行，每行1600字符；两路输出持续消费，单行内存有上限。
+- 普通进度约4Hz增量推送、约2秒合并保存；创建、取消、重试、完成等关键变化在SQLite确认后公开。两个窗口按session/revision校验事件，缺口由完整快照恢复；低频checkpoint可发现丢失的最后终态。没有随机进度或前端定时伪造。
+- SQLite采用独立连接线程和按记录增量事务，主任务锁不等待SQL。v1旧库事务升级，未知字段/不可理解行保留并诊断；未来或不兼容schema拒绝，只有确认物理损坏才先备份后重建。重启将所有可理解非终态任务（含等待中）标为「已中断」，由用户主动重试；写入未确认不会假报完成。
 - URL、预设、格式和目录均在 Rust 再次校验；使用可执行文件加参数数组，不拼接 shell。加入队列会再次解析，防止前端伪造格式元数据。
 - Windows 下载与解析子进程使用受控进程生命周期；取消下载会终止整个 Windows Job。Linux/macOS 没有做完整验收，子进程树保证仅针对 Windows。
 - 两窗口只获得事件、拖动和原生文件选择权限；前端没有通用 shell 或文件系统接口。文件打开仅对已完成记录、安全目录内存在的媒体文件执行。
@@ -96,16 +98,17 @@ node scripts/desktop-smoke.mjs 'E:\VedioDownload\yt-dlp.exe'
 
 ## 文件索引
 
-- `src/App.tsx`：工作台、队列、历史、设置、快速捕获与抽屉。
-- `src/lib/api.ts` / `types.ts`：集中 IPC 与前端类型；`src/stores/app.ts`：展示快照。
-- `src/styles/app.css`：语义色、浅深主题、密度、动效和响应布局。
-- `src-tauri/src/lib.rs` / `windows.rs`：受控命令、真实双窗口、托盘与退出。
-- `src-tauri/src/engine.rs`：探测、媒体解析、下载参数、进度协议与诊断。
-- `src-tauri/src/manager.rs` / `persistence.rs` / `process_job.rs`：队列、SQLite、Windows 进程组。
+- `src/App.tsx` / `windows/` / `pages/` / `features/`：薄入口、窗口、页面及业务组件。
+- `src/lib/api.ts` / `types.ts` / `errors.ts`：集中IPC、类型与兼容错误；`stores/`：规范化缓存、selector、协议与恢复控制器。
+- `src/styles/app.css`：按原层叠顺序组织Token、主题及窗口/业务样式。
+- `src-tauri/src/lib.rs` / `commands.rs` / `windows.rs`：装配、受控命令、真实双窗口、托盘与退出。
+- `src-tauri/src/engine/` / `process/`：引擎探测/解析/参数/进度与真实子进程所有权。
+- `src-tauri/src/manager.rs` / `transitions.rs` / `events.rs`：队列协调、合法状态转换、有序增量事件。
+- `src-tauri/src/persistence/` / `errors.rs` / `diagnostics.rs`：增量SQLite、稳定错误与日志脱敏。
 - `src-tauri/tauri.conf.json` / `capabilities/desktop.json`：安装包、安全策略与权限。
-- `docs/engine.md` / `docs/validation.md`：引擎细节与实际验收记录。
+- `docs/engine.md` / `docs/engineering/0.2.0-architecture.md` / `0.2.0-validation-report.md`：引擎、架构和本轮实际验证；`docs/validation.md`保留0.1历史。
 - `LICENSE` / `THIRD_PARTY_NOTICES.md` / `licenses/`：MIT 项目许可、第三方声明与原文。
 
 工程仓库：[DewMysimple/FluxDL](https://github.com/DewMysimple/FluxDL)。工程记忆使用 standard 模式，入口是 [wiki_memory/README.md](wiki_memory/README.md)，协作与持续提交推送规则见 [AGENTS.md](AGENTS.md)。
 
-后续方向：独立引擎更新流程、可配置快捷键、播放列表设计、签名发布。尚未创建远程 Release；当前安装包在本地 `release/`，CI 产物通过 Actions 下载。
+后续方向：独立引擎更新流程、可配置快捷键、播放列表设计、签名发布。本轮不创建远程Release、不触发CI；0.2产物在上述target目录，release/保留用户原0.1运行文件。后续CI产物可通过Actions获取，以实际运行结果为准。

@@ -1,0 +1,41 @@
+{
+  "version": "0.2.0",
+  "files": [
+    {
+      "name": "FluxDL_0.2.0_x64-setup.exe",
+      "role": "installer",
+      "bytes": 3009731,
+      "sha256": "b04df59d8d07447aecf08fa1cfb856c0a0cfd5acb0057c671fea8f50075f3078",
+      "productVersion": "0.2.0",
+      "fileVersion": "0.2.0"
+    },
+    {
+      "name": "fluxdl.exe",
+      "role": "release",
+      "bytes": 10143744,
+      "sha256": "198a38050025f1da9a48cef3ff7e7597d884049d60700be38e033a257ff1fa83",
+      "productVersion": "0.2.0",
+      "fileVersion": "0.2.0"
+    },
+    {
+      "name": "fluxdl.exe",
+      "role": "debug",
+      "bytes": 23338496,
+      "sha256": "d5beaa8fc2af4535da86e55285fff8ba9b04ea0806d1749767e8fa77e4b569d8",
+      "productVersion": "0.2.0",
+      "fileVersion": "0.2.0"
+    }
+  ],
+  "releaseStagingExecuted": false,
+  "installerExecuted": false,
+  "signing": "unsigned",
+  "releaseDebugGateMarkersAbsent": {
+    "testDataDirectory": true,
+    "diagnosticPort": true
+  },
+  "dependencyReview": {
+    "existingNpmVersionsUnchanged": 160,
+    "newNpmDevOnlyEntries": 152,
+    "allThirdPartyCargoLockEntriesUnchanged": true
+  }
+}

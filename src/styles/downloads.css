@@ -1,0 +1,235 @@
+.task-row {
+  display: flex;
+  align-items: center;
+  padding: 15px 0;
+  min-height: 82px;
+  border-bottom: 1px solid var(--border-soft);
+  gap: 12px;
+}
+.task-row:last-child {
+  border-bottom: 0;
+}
+.task-row:hover {
+  background: linear-gradient(90deg, transparent, var(--surface), transparent);
+}
+.task-main {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  gap: 13px;
+  padding: 0;
+}
+.media-image {
+  width: 82px;
+  height: 47px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--elevated), var(--surface));
+  border: 1px solid var(--border-soft);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.media-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.task-copy {
+  min-width: 0;
+  flex: 1;
+}
+.task-copy > strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  font-size: var(--font-control);
+  font-weight: 500;
+  line-height: 1.5;
+}
+.task-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 5px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.task-meta > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.task-meta > i {
+  width: 2px;
+  height: 2px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--muted);
+  opacity: 0.7;
+}
+.task-state {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+  min-width: 68px;
+}
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--secondary);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.status > span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.status-downloading,
+.status-postprocessing {
+  color: var(--accent);
+}
+.status-completed {
+  color: var(--success);
+}
+.status-failed {
+  color: var(--danger);
+}
+.status-interrupted {
+  color: var(--warning);
+}
+.percent {
+  color: var(--secondary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.task-state small {
+  font-size: 9px;
+}
+.task-actions {
+  display: flex;
+  align-items: center;
+  width: 62px;
+  flex-shrink: 0;
+  gap: 2px;
+  justify-content: flex-end;
+  opacity: 0;
+}
+.task-row:hover .task-actions,
+.task-row:focus-within .task-actions {
+  opacity: 1;
+}
+.task-actions .icon-button {
+  width: 27px;
+}
+.progress-track {
+  height: 3px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--border);
+  margin-top: 8px;
+}
+.progress-track > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.2s linear;
+}
+.progress-track.indeterminate > span {
+  width: 30%;
+  animation: slide 1.5s ease-in-out infinite;
+}
+@keyframes slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(440%);
+  }
+}
+.task-transfer {
+  display: flex;
+  justify-content: space-between;
+  gap: 5px;
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 5px;
+  font-variant-numeric: tabular-nums;
+}
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: 3px 10px;
+  width: 280px;
+  height: 34px;
+}
+.search-field input {
+  border: 0;
+  background: none;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-control);
+  padding: 5px 0;
+}
+.search-field input:focus {
+  outline: 0;
+}
+.search-field:focus-within {
+  border-color: var(--accent);
+}
+.history-record {
+  border-bottom: 1px solid var(--border-soft);
+  padding: 0 0 9px;
+}
+.history-record .task-row {
+  border: 0;
+  padding-bottom: 8px;
+}
+.history-extra {
+  display: flex;
+  justify-content: space-between;
+  padding-left: 95px;
+  gap: 10px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.history-extra > span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 75%;
+}
+.history-extra > button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+  padding: 2px;
+}
+.history-extra > button:hover {
+  color: var(--danger);
+}

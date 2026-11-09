@@ -1,0 +1,180 @@
+{
+  "schemaVersion": 1,
+  "phase": "before-refactor",
+  "generatedAt": "2026-11-09T04:47:12.792Z",
+  "environment": {
+    "node": "v24.16.0",
+    "platform": "win32",
+    "osRelease": "10.0.26200",
+    "totalMemoryBytes": 34138726400,
+    "renderer": "ReactDOM development build + jsdom; no StrictMode for benchmark"
+  },
+  "method": {
+    "storeSamples": 20,
+    "reactSamples": 5,
+    "warmupReactUpdates": 1,
+    "changedTask": "one active task while History displays only completed tasks",
+    "taskRowCounter": "transparent MoreHorizontal wrapper; History renders it once per TaskRow",
+    "decodingOutsideTimedUpdate": true,
+    "quantiles": "nearest-rank",
+    "limitations": [
+      "jsdom has no native layout, painting, WebView2 IPC transport or FPS measurement",
+      "React Profiler adds instrumentation overhead; these are comparative development timings",
+      "minimal metadata and empty logs make payload a controlled lower-bound fixture, not production telemetry",
+      "all received records are recreated to model JSON decoding; storeUpdateMs excludes React and JSON decoding",
+      "five React samples are a small comparative sample; p95 is the maximum observed sample"
+    ]
+  },
+  "measurements": [
+    {
+      "taskCount": 100,
+      "visibleHistoryRows": 99,
+      "changedDomainTasks": 1,
+      "recreatedTaskRecordsPerSnapshot": 100,
+      "snapshotPayloadBytes": 67338,
+      "storeNotificationsFor20Updates": 20,
+      "storeUpdateMs": {
+        "samples": 20,
+        "p50": 0.0015000000000782165,
+        "p95": 0.01010000000007949,
+        "min": 0.0005999999999630745,
+        "max": 0.03059999999993579
+      },
+      "snapshotSerializeMs": {
+        "samples": 20,
+        "p50": 0.10560000000009495,
+        "p95": 0.10929999999996198,
+        "min": 0.10339999999996508,
+        "max": 0.14480000000003201
+      },
+      "reactActualDurationMs": {
+        "samples": 5,
+        "p50": 17.355600000004188,
+        "p95": 65.2863000000018,
+        "min": 16.777999999998656,
+        "max": 65.2863000000018
+      },
+      "updateThroughEffectsMs": {
+        "samples": 5,
+        "p50": 24.739399999999932,
+        "p95": 73.73759999999993,
+        "min": 24.019700000000057,
+        "max": 73.73759999999993
+      },
+      "unrelatedHistoryRowRendersPerUpdate": [
+        99,
+        99,
+        99,
+        99,
+        99
+      ],
+      "reactCommitCounts": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "taskCount": 1000,
+      "visibleHistoryRows": 999,
+      "changedDomainTasks": 1,
+      "recreatedTaskRecordsPerSnapshot": 1000,
+      "snapshotPayloadBytes": 670338,
+      "storeNotificationsFor20Updates": 20,
+      "storeUpdateMs": {
+        "samples": 20,
+        "p50": 0.0022999999998774,
+        "p95": 0.005300000000033833,
+        "min": 0.0017000000000280124,
+        "max": 0.0060000000000854925
+      },
+      "snapshotSerializeMs": {
+        "samples": 20,
+        "p50": 1.2649000000001251,
+        "p95": 1.3365999999998621,
+        "min": 1.2293999999999414,
+        "max": 1.3432999999999993
+      },
+      "reactActualDurationMs": {
+        "samples": 5,
+        "p50": 241.44610000002967,
+        "p95": 532.4173999999744,
+        "min": 143.68149999995558,
+        "max": 532.4173999999744
+      },
+      "updateThroughEffectsMs": {
+        "samples": 5,
+        "p50": 305.21180000000004,
+        "p95": 661.1949,
+        "min": 213.19830000000002,
+        "max": 661.1949
+      },
+      "unrelatedHistoryRowRendersPerUpdate": [
+        999,
+        999,
+        999,
+        999,
+        999
+      ],
+      "reactCommitCounts": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "taskCount": 5000,
+      "visibleHistoryRows": 4999,
+      "changedDomainTasks": 1,
+      "recreatedTaskRecordsPerSnapshot": 5000,
+      "snapshotPayloadBytes": 3362338,
+      "storeNotificationsFor20Updates": 20,
+      "storeUpdateMs": {
+        "samples": 20,
+        "p50": 0.011499999999614374,
+        "p95": 0.013800000000628643,
+        "min": 0.009399999999914144,
+        "max": 0.018800000000737782
+      },
+      "snapshotSerializeMs": {
+        "samples": 20,
+        "p50": 10.001500000000306,
+        "p95": 11.559900000000198,
+        "min": 9.538700000000063,
+        "max": 13.714399999999841
+      },
+      "reactActualDurationMs": {
+        "samples": 5,
+        "p50": 1897.6391000004405,
+        "p95": 1932.2248999994772,
+        "min": 1675.2635999991599,
+        "max": 1932.2248999994772
+      },
+      "updateThroughEffectsMs": {
+        "samples": 5,
+        "p50": 2509.1768999999986,
+        "p95": 2554.889299999999,
+        "min": 2321.750899999999,
+        "max": 2554.889299999999
+      },
+      "unrelatedHistoryRowRendersPerUpdate": [
+        4999,
+        4999,
+        4999,
+        4999,
+        4999
+      ],
+      "reactCommitCounts": [
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "label": "before",
+  "generatedAt": "2026-11-09T04:57:05.886Z",
+  "runId": "2026-11-09T04-55-22-817Z",
+  "originalReportSha256": "42375cc1ef350758393f12ad8fd9c5b9b17fbb74ab2b7d1f42ca3c3f2284e465",
+  "passedChecks": 11,
+  "errors": [],
+  "observations": [
+    {
+      "window": "workspace",
+      "event": "app-state-updated",
+      "type": "snapshot",
+      "count": 69,
+      "payloadBytes": {
+        "p50": 6366,
+        "p95": 6550,
+        "min": 1373,
+        "max": 6702
+      },
+      "totalPayloadBytes": 377855,
+      "peakOneSecondCount": 5
+    },
+    {
+      "window": "quick",
+      "event": "app-state-updated",
+      "type": "snapshot",
+      "count": 69,
+      "payloadBytes": {
+        "p50": 6366,
+        "p95": 6550,
+        "min": 1373,
+        "max": 6702
+      },
+      "totalPayloadBytes": 377855,
+      "peakOneSecondCount": 5
+    }
+  ],
+  "limitations": [
+    "Real Tauri event payload UTF-8 sizes measured inside each WebView; excludes transport framing and encoding overhead.",
+    "Event listener installed before smoke actions; early application startup events are not included.",
+    "Peak count includes semantic events for that type; legacy snapshots do not identify progress versus semantic changes.",
+    "The smoke has a small number of tasks; large-history payload is measured separately by engineering_bench.",
+    "Windows background scheduling may batch delivery; observed peak is not the configured backend tick rate."
+  ]
+}

@@ -1,0 +1,165 @@
+{
+  "label": "before",
+  "startedAt": "2026-11-09T04:46:32.394774700+00:00",
+  "os": "windows",
+  "architecture": "x86_64",
+  "profile": "release",
+  "persistenceApi": "Persistence::open + Persistence::save (legacy whole-table transaction)",
+  "temporaryDataOnly": true,
+  "networkUsed": false,
+  "notes": [
+    "20 nearest-rank percentile samples by default; warm OS cache, not a cold-disk benchmark.",
+    "History uses one format and three bounded log lines; recorded output paths intentionally do not exist.",
+    "Load includes quick_check, JSON decode, file existence checks, sort and legacy startup full save.",
+    "Insert/update/terminal use the actual production save API, including all unchanged historical documents.",
+    "Each progress batch consists of persistence flushes, not raw yt-dlp events; no real-time sleeps.",
+    "Snapshot metric measures production AppSnapshot JSON serialization only, excluding Manager cloning/filesystem checks and WebView transport.",
+    "All database work uses unique temporary directories; no user database or real network is accessed."
+  ],
+  "datasets": [
+    {
+      "historyTasks": 100,
+      "activeTasks": 1,
+      "databaseLoad": {
+        "samples": 20,
+        "p50Ms": 10.115300000000001,
+        "p95Ms": 11.0761,
+        "minMs": 9.099,
+        "maxMs": 12.5422
+      },
+      "insertTask": {
+        "samples": 20,
+        "p50Ms": 3.3912,
+        "p95Ms": 4.1789000000000005,
+        "minMs": 2.8704,
+        "maxMs": 4.6905
+      },
+      "updateTask": {
+        "samples": 20,
+        "p50Ms": 3.3823999999999996,
+        "p95Ms": 4.2107,
+        "minMs": 2.8684000000000003,
+        "maxMs": 4.2132000000000005
+      },
+      "progressBatch": {
+        "samples": 20,
+        "p50Ms": 63.553700000000006,
+        "p95Ms": 73.2178,
+        "minMs": 55.8643,
+        "maxMs": 73.28659999999999
+      },
+      "progressWritesPerBatch": 20,
+      "terminalWrite": {
+        "samples": 20,
+        "p50Ms": 3.0921,
+        "p95Ms": 4.8027,
+        "minMs": 2.4502,
+        "maxMs": 5.2053
+      },
+      "snapshotSerialization": {
+        "samples": 20,
+        "p50Ms": 0.1386,
+        "p95Ms": 0.1751,
+        "minMs": 0.13549999999999998,
+        "maxMs": 0.20550000000000002
+      },
+      "snapshotBytes": 108584
+    },
+    {
+      "historyTasks": 1000,
+      "activeTasks": 1,
+      "databaseLoad": {
+        "samples": 20,
+        "p50Ms": 50.8083,
+        "p95Ms": 58.9483,
+        "minMs": 47.8035,
+        "maxMs": 62.5869
+      },
+      "insertTask": {
+        "samples": 20,
+        "p50Ms": 11.6344,
+        "p95Ms": 27.4963,
+        "minMs": 9.9233,
+        "maxMs": 31.511699999999998
+      },
+      "updateTask": {
+        "samples": 20,
+        "p50Ms": 21.432,
+        "p95Ms": 38.6193,
+        "minMs": 10.1676,
+        "maxMs": 42.4788
+      },
+      "progressBatch": {
+        "samples": 20,
+        "p50Ms": 293.7574,
+        "p95Ms": 390.57989999999995,
+        "minMs": 230.5699,
+        "maxMs": 430.8361
+      },
+      "progressWritesPerBatch": 20,
+      "terminalWrite": {
+        "samples": 20,
+        "p50Ms": 10.5877,
+        "p95Ms": 22.6882,
+        "minMs": 9.610199999999999,
+        "maxMs": 31.4855
+      },
+      "snapshotSerialization": {
+        "samples": 20,
+        "p50Ms": 1.2329999999999999,
+        "p95Ms": 1.5595999999999999,
+        "minMs": 1.1774,
+        "maxMs": 1.6146
+      },
+      "snapshotBytes": 1081484
+    },
+    {
+      "historyTasks": 5000,
+      "activeTasks": 1,
+      "databaseLoad": {
+        "samples": 20,
+        "p50Ms": 506.7731,
+        "p95Ms": 600.9383,
+        "minMs": 406.9711,
+        "maxMs": 613.3558
+      },
+      "insertTask": {
+        "samples": 20,
+        "p50Ms": 98.85480000000001,
+        "p95Ms": 109.9126,
+        "minMs": 90.3402,
+        "maxMs": 113.951
+      },
+      "updateTask": {
+        "samples": 20,
+        "p50Ms": 98.8354,
+        "p95Ms": 109.5433,
+        "minMs": 93.8429,
+        "maxMs": 114.8406
+      },
+      "progressBatch": {
+        "samples": 20,
+        "p50Ms": 2016.5383000000002,
+        "p95Ms": 2211.4226000000003,
+        "minMs": 1508.7113,
+        "maxMs": 2273.9042999999997
+      },
+      "progressWritesPerBatch": 20,
+      "terminalWrite": {
+        "samples": 20,
+        "p50Ms": 76.4507,
+        "p95Ms": 151.4603,
+        "minMs": 50.9075,
+        "maxMs": 168.8
+      },
+      "snapshotSerialization": {
+        "samples": 20,
+        "p50Ms": 13.3651,
+        "p95Ms": 20.6194,
+        "minMs": 10.9571,
+        "maxMs": 24.5268
+      },
+      "snapshotBytes": 5413484
+    }
+  ]
+}

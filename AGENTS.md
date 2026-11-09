@@ -5,11 +5,13 @@
 - 沟通、工程说明和交付使用简体中文。产品需求以 `prompt/FluxDL_Codex_MVP_Prompt.md` 为基线；实现以当前源码和配置为准。
 - Windows-first，React / TypeScript / Vite + Tauri 2 / Rust。真实下载、队列、进度与持久化由 Rust 管理；浏览器只作界面预览。
 - 修改前检查 `git status --short --branch`、当前 HEAD 与实际远程分支，保留用户和其他任务的改动。
-- 按修改范围执行必要检查：前端 `npm run typecheck`、`npm test`；后端 `npm run check:rust`、`npm run test:rust`；队列生命周期使用 `./scripts/test-queue.ps1`。仅改记忆或文档时检查相关引用和记忆，不为记忆重跑业务测试。详细验证边界见 `docs/validation.md`。
+- 按修改范围执行必要检查：前端 `npm run typecheck`、`npm run lint`、`npm run format:check`、`npm test`；后端 `npm run check:rust`、`npm run format:rust`、`npm run lint:rust`、`npm run test:rust`；队列生命周期使用 `./scripts/test-queue.ps1`。仅改记忆或文档时检查相关引用和记忆，不为记忆重跑业务测试。当前验证边界见 `docs/engineering/0.2.0-validation-report.md`，`docs/validation.md`保留0.1历史。
 
 ## Git 交付：持续授权
 
 用户于 2026-11-09 明确要求：以后每次完整对话产生的工程修改均提交并推送到 `https://github.com/DewMysimple/FluxDL.git`。该要求适用于本工程后续会话，直至用户修改或撤销。
+
+2026-11-09执行 `prompt/FluxDL_Codex_Engineering_Refinement_0.2.0.md` 有明确例外：该任务第2.2、14.H节要求不自动commit/push、不创建Release，因此这一完整执行保留本地修改并报告工作树，不提交或更改远程。例外不自动扩展到后续新任务；新任务恢复上述持续授权，除非用户再次指定其他要求。
 
 - 远程名 `origin` 指向上述仓库；交付前核对实际 URL 和 upstream。当前主分支为 `main`，其他任务分支遵循其实际 upstream，不悄悄推到其他仓库。
 - 完成修改后，先同步有持久价值的工程记忆、执行必要检查、审查差异，再提交本次已授权修改并推送。该范围内的提交和推送已有授权，无需重复确认。

@@ -61,3 +61,50 @@ impl Drop for ProcessJob {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::ProcessJob;
+    use std::{path::PathBuf, process::Stdio, time::Duration};
+    use tokio::process::Command;
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn windows_job_drop_kills_parent_and_descendant() {
+        use tokio::io::AsyncBufReadExt;
+        use windows_sys::Win32::{
+            Foundation::{CloseHandle, WAIT_OBJECT_0, WAIT_TIMEOUT},
+            System::Threading::{OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE},
+        };
+        let powershell =
+            PathBuf::from(std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into()))
+                .join("System32/WindowsPowerShell/v1.0/powershell.exe");
+        let mut command = Command::new(powershell);
+        command.args(["-NoProfile","-NonInteractive","-Command","$p = Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -ArgumentList @('-NoProfile','-NonInteractive','-Command','Start-Sleep -Seconds 60') -WindowStyle Hidden -PassThru; Write-Output $p.Id; Start-Sleep -Seconds 60"]).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null()).kill_on_drop(true).creation_flags(0x08000000);
+        let mut parent = command.spawn().unwrap();
+        let job = ProcessJob::assign(&parent).unwrap();
+        let mut reader = tokio::io::BufReader::new(parent.stdout.take().unwrap());
+        let mut line = String::new();
+        tokio::time::timeout(Duration::from_secs(10), reader.read_line(&mut line))
+            .await
+            .unwrap()
+            .unwrap();
+        let descendant_pid: u32 = line.trim().parse().unwrap();
+        let descendant = unsafe { OpenProcess(PROCESS_SYNCHRONIZE, 0, descendant_pid) };
+        assert!(!descendant.is_null());
+        assert_eq!(unsafe { WaitForSingleObject(descendant, 0) }, WAIT_TIMEOUT);
+        drop(job);
+        tokio::time::timeout(Duration::from_secs(5), parent.wait())
+            .await
+            .unwrap()
+            .unwrap();
+        // KILL_ON_JOB_CLOSE can report exit code zero. Timely process completion
+        // and a signalled descendant handle establish termination, not the code.
+        assert_eq!(
+            unsafe { WaitForSingleObject(descendant, 2000) },
+            WAIT_OBJECT_0
+        );
+        unsafe {
+            CloseHandle(descendant);
+        }
+    }
+}

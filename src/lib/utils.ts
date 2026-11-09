@@ -49,9 +49,7 @@ export function validateUrl(value: string): string | null {
     return "请输入完整有效的媒体链接";
   }
 }
-export function errorText(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
-}
+export { errorText, isStructuredIpcError } from "./errors";
 export function date(value: string) {
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime())

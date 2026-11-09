@@ -18,6 +18,7 @@ export function startMediaServer() {
   const server = http.createServer((req, res) => {
     if (unavailable || req.url?.includes('/missing')) { res.writeHead(404).end('Missing test fixture'); return; }
     const slow = req.url?.includes('slow');
+    const chunkSize = req.url?.includes('native-slow') ? 4096 : 16384;
     const range = /bytes=(\d+)-(\d*)/.exec(req.headers.range || '');
     let start = range ? Number(range[1]) : 0;
     const end = range?.[2] ? Math.min(Number(range[2]), content.length - 1) : content.length - 1;
@@ -27,7 +28,7 @@ export function startMediaServer() {
     if (req.method === 'HEAD') { res.end(); return; }
     if (!slow) { res.end(content.subarray(start, end + 1)); return; }
     const interval = setInterval(() => {
-      const next = Math.min(start + 16384, end + 1);
+      const next = Math.min(start + chunkSize, end + 1);
       res.write(content.subarray(start, next));
       start = next;
       if (start > end) { clearInterval(interval); res.end(); }
