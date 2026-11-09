@@ -1,0 +1,36 @@
+{
+  "build": {
+    "schema": 1,
+    "product": "FluxDL",
+    "version": "0.2.1",
+    "gitCommit": "dcf001db2e9b",
+    "gitCommitFull": "dcf001db2e9b0ed8c1fa8c13f31d0f6251c19c0a",
+    "gitDirty": false,
+    "sourceFingerprint": "a89182466fd98ca2fd5b718eb2f52061627c2c273122169981c480c63cbe467d",
+    "buildTimeUtc": "2026-11-09T15:29:15.478Z",
+    "finishedTimeUtc": "2026-11-09T15:31:13.722Z",
+    "target": "windows-x64",
+    "profile": "release",
+    "packaging": "tauri2-nsis-and-raw-exe",
+    "engineDistribution": "external",
+    "validationMode": "production",
+    "buildId": "929bf421-47ae-4e5c-aeed-0a074fc7aee5"
+  },
+  "files": 489,
+  "independent_python_crc_and_all_file_hashes": "passed",
+  "runtime_logs_databases_and_diagnostic_archives": "absent",
+  "artifacts": {
+    "FluxDL.exe": {
+      "bytes": 10765824,
+      "sha256": "0a75cb1cec2c0603224481024cad6b13320ecdcfbac38e7c3205114ecd8f7add"
+    },
+    "FluxDL_0.2.1_x64-setup.exe": {
+      "bytes": 3182119,
+      "sha256": "a3958208e639a96726141bc676dc67e2318fe11e956121f2c7a202883970d74d"
+    },
+    "FluxDL.zip": {
+      "bytes": 8343185,
+      "sha256": "9f646b905d0bbaeac2b5eed7b565c5c8cd9a1558b6dcc2d3144016a18eeb02bb"
+    }
+  }
+}
