@@ -163,6 +163,32 @@ pub fn markdown(
             "\n样本不足：少于20条的阶段仅显示本窗口经验分位数，单次采样的p95不代表总体性能。\n",
         );
     }
+    out.push_str("\n## 下载吞吐诊断\n\n仅使用通过attempt/stream准入的实际字节增量与单调时间。每流首条已有/续传字节不计入新传输量；解析、排队、两流之间和后处理不计入观测时长。5s/10s窗口不足时为未观测，窗口边界取真实采样点（实际间隔可能略长），不插值补造字节。普通样本有效不代表任务完成；最终样本在真实owner停止且终态持久化确认后发布。无增长观测超过5秒才计一次；这也可能是进度缺失，不能单凭此值断言网络卡死。单位KiB/s=1024 B/s，换算kb/s需乘8/1000。\n\n");
+    let mut throughput_seen = HashSet::new();
+    for event in events
+        .iter()
+        .rev()
+        .filter(|event| event.fields.throughput.is_some())
+    {
+        if !throughput_seen.insert((&event.trace_id, &event.fields.attempt_id)) {
+            continue;
+        }
+        if throughput_seen.len() > 10 {
+            break;
+        }
+        let value = event.fields.throughput.as_ref().unwrap();
+        let rate = |bps: Option<f64>| {
+            bps.map_or_else(
+                || "未观测".to_string(),
+                |n| format!("{:.2} KiB/s", n / 1024.0),
+            )
+        };
+        out.push_str(&format!("- 任务 `{}` / Trace `{}` / attempt `{}`：{}；观测{}字节 / {:.3}秒；均速{}；5s {}；10s {}；5s峰值{}；无增长观测{}次 / {:.3}秒；末次增长间隔{:.3}秒；{}条进度、{}条流。\n",event.task_id.as_deref().unwrap_or("无任务"),event.trace_id,event.fields.attempt_id.as_deref().unwrap_or("未关联"),if value.final_sample {format!("最终样本 {:?}",event.status)} else {"进行中的有效采样（不是终态）".into()},value.observed_bytes,value.duration_ms/1000.0,rate(value.mean_bps),rate(value.window_5s_bps),rate(value.window_10s_bps),rate(value.max_5s_bps),value.stall_count,value.stall_duration_ms/1000.0,value.progress_gap_ms/1000.0,value.samples,value.stream_count));
+        out.push_str(&format!("  协议 {:?}；下载器选择配置 {:?}；网络配置 {:?}（未确认实际TUN/路由/节点）。协议只记本次最近下载流；历史流可查其采样事件。\n",value.protocol,value.downloader,value.network_mode));
+    }
+    if throughput_seen.is_empty() {
+        out.push_str("暂无通过准入的下载吞吐样本；不填0速度，不把只解析成功当作吞吐证据。\n");
+    }
     out.push_str("\n## 慢Trace Top 5（总阶段不累加）\n\n");
     for event in summary.slow_traces.iter().take(5) {
         out.push_str(&format!(

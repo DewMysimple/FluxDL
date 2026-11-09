@@ -582,3 +582,209 @@ fn rotation_counts_the_current_file_even_after_the_wall_clock_moves_backwards() 
     s.flush().unwrap();
     assert_eq!(std::fs::read_dir(sessions).unwrap().count(), 5);
 }
+
+#[test]
+fn throughput_optional_schema_rejects_private_objects_and_invalid_numbers() {
+    let s = Diagnostics::disabled();
+    let t = s.trace(None, None, None);
+    t.download_progress(1000, false, false, None);
+    t.stop_throughput();
+    t.finish_throughput(Status::Cancelled);
+    let event = s
+        .read()
+        .events
+        .into_iter()
+        .find(|e| e.fields.throughput.is_some())
+        .unwrap();
+    assert!(event.valid());
+    let mut json = serde_json::to_value(&event).unwrap();
+    json["fields"]["throughput"]["proxy"] = serde_json::json!("http://user:PRIVATE@127.0.0.1:1234");
+    assert!(serde_json::from_value::<Event>(json).is_err());
+    let mut invalid = event.clone();
+    invalid.fields.throughput.as_mut().unwrap().mean_bps = Some(f64::INFINITY);
+    assert!(!invalid.valid());
+    invalid = event.clone();
+    invalid.fields.throughput.as_mut().unwrap().duration_ms = -1.0;
+    assert!(!invalid.valid());
+    invalid = event;
+    invalid.phase = Stage::ParseTotal;
+    assert!(!invalid.valid());
+    let mut legacy = serde_json::to_value(super::tests::event(&s)).unwrap();
+    legacy["fields"]
+        .as_object_mut()
+        .unwrap()
+        .remove("throughput");
+    assert!(serde_json::from_value::<Event>(legacy).unwrap().valid());
+}
+
+#[test]
+fn throughput_terminal_is_once_throttled_correlated_and_reported_without_stage_duration() {
+    let s = Diagnostics::disabled();
+    let task = uuid::Uuid::new_v4().to_string();
+    let trace = s.trace(None, None, Some(&task));
+    for bytes in 0..100 {
+        trace.download_progress(bytes, false, false, None);
+    }
+    trace.stop_throughput();
+    trace.finish_throughput(Status::Failed);
+    trace.finish_throughput(Status::Ok);
+    trace.download_progress(1_000_000, true, false, None);
+    trace.tick_throughput();
+    let events = s.read().events;
+    let samples: Vec<_> = events
+        .iter()
+        .filter(|e| e.fields.throughput.is_some())
+        .collect();
+    assert_eq!(samples.len(), 2);
+    assert_eq!(samples[1].status, Status::Failed);
+    assert!(samples[1].important());
+    assert!(samples[1].duration_ms.is_none());
+    assert_eq!(samples[1].task_id.as_deref(), Some(task.as_str()));
+    assert_eq!(samples[0].fields.attempt_id, samples[1].fields.attempt_id);
+    let value = samples[1].fields.throughput.as_ref().unwrap();
+    assert_eq!(value.observed_bytes, 99);
+    assert!(value.final_sample);
+    assert!(value.window_5s_bps.is_none());
+    assert!(report::overview(events.clone(), &s.session, 0, false)
+        .statistics
+        .is_empty());
+    let report = report::markdown(&events, "fixture", &s.session, 0, false, 0, 0);
+    assert!(report.contains("下载吞吐诊断") && report.contains("99字节"));
+    assert!(report.contains("进度缺失") && report.contains("KiB/s"));
+}
+
+#[test]
+fn stage_view_keeps_stages_and_latest_throughput_per_attempt_before_pagination() {
+    let service = Diagnostics::disabled();
+    let task = uuid::Uuid::new_v4().to_string();
+    let original = service.trace(None, None, Some(&task));
+    // A same-Trace retry fixture proves attempts are not collapsed together.
+    let retry = service.trace(Some(original.id()), None, Some(&task));
+    assert_ne!(original.attempt, retry.attempt);
+    original.begin(Stage::QueueWait);
+    original.finish(Stage::QueueWait, Status::Ok, None);
+    original.fault(
+        Stage::PersistenceIssue,
+        &crate::errors::AppError::new(
+            crate::errors::ErrorCode::PersistenceRejected,
+            crate::errors::ErrorPhase::Persist,
+            "fixture source error never retained",
+        ),
+    );
+    let mut latest_ids = vec![];
+    for trace in [&original, &retry] {
+        let mut counters = throughput::Throughput::default();
+        for n in 0..320 {
+            let sample = counters
+                .observe(Duration::from_secs(n * 5), n * 1024, false, false)
+                .unwrap();
+            trace.record_throughput(sample, Status::Ok);
+        }
+        latest_ids.push(service.read().events.last().unwrap().event_id.clone());
+    }
+    let stage_filter = Filter {
+        task_id: Some(task.clone()),
+        stage_view: true,
+        limit: 100,
+        ..Default::default()
+    };
+    let stage_page = service.query(&stage_filter).unwrap();
+    assert_eq!(stage_page.total, 5);
+    assert!(stage_page.next_cursor.is_none());
+    assert_eq!(
+        stage_page
+            .events
+            .iter()
+            .filter(|e| e.phase == Stage::QueueWait)
+            .count(),
+        2
+    );
+    assert!(stage_page
+        .events
+        .iter()
+        .any(|e| e.event == EventName::FaultObserved && e.phase == Stage::PersistenceIssue));
+    let samples: Vec<_> = stage_page
+        .events
+        .iter()
+        .filter(|e| e.event == EventName::ThroughputSample)
+        .collect();
+    assert_eq!(samples.len(), 2);
+    assert!(samples.iter().all(|e| latest_ids.contains(&e.event_id)));
+    assert!(samples
+        .iter()
+        .all(|e| e.fields.throughput.as_ref().unwrap().samples == 320));
+    let first = service
+        .query(&Filter {
+            limit: 2,
+            ..stage_filter.clone()
+        })
+        .unwrap();
+    let next = service
+        .query(&Filter {
+            limit: 2,
+            cursor: first.next_cursor.unwrap(),
+            ..stage_filter.clone()
+        })
+        .unwrap();
+    assert!(first
+        .events
+        .iter()
+        .all(|a| next.events.iter().all(|b| a.event_id != b.event_id)));
+    assert_eq!(next.total, 5);
+
+    // Normal events, overview and export keep all 640 actual typed fixture samples.
+    let raw_page = service
+        .query(&Filter {
+            stage_view: false,
+            ..stage_filter.clone()
+        })
+        .unwrap();
+    assert_eq!(raw_page.total, 643);
+    assert_eq!(raw_page.events.len(), 100);
+    assert!(raw_page
+        .events
+        .iter()
+        .all(|e| e.event == EventName::ThroughputSample));
+    assert_eq!(service.overview(&stage_filter).unwrap().total, 643);
+    let root = directory();
+    let destination = root.join("stage-view-export.zip");
+    service.export(&destination, &stage_filter, &[]).unwrap();
+    let zip = std::fs::read(destination).unwrap();
+    assert_eq!(
+        String::from_utf8_lossy(&zip)
+            .matches("\"event\":\"throughput_sample\"")
+            .count(),
+        640
+    );
+}
+
+#[test]
+fn stage_view_is_optional_camel_case_and_requires_task_or_trace_scope() {
+    let default: Filter = serde_json::from_str("{}").unwrap();
+    assert!(!default.stage_view);
+    let scoped = Filter {
+        stage_view: true,
+        trace_id: Some(uuid::Uuid::new_v4().to_string()),
+        ..Default::default()
+    };
+    let json = serde_json::to_value(&scoped).unwrap();
+    assert_eq!(json["stageView"], true);
+    assert!(serde_json::from_value::<Filter>(json)
+        .unwrap()
+        .validate()
+        .is_ok());
+    assert!(Filter {
+        stage_view: true,
+        ..Default::default()
+    }
+    .validate()
+    .is_err());
+    assert!(Filter {
+        stage_view: true,
+        task_id: Some("private/path".into()),
+        ..Default::default()
+    }
+    .validate()
+    .is_err());
+    assert!(serde_json::from_str::<Filter>(r#"{"stageView":"true"}"#).is_err());
+}

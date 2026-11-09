@@ -20,6 +20,7 @@ export type Stage =
   | "download_active"
   | "download_postprocess"
   | "download_terminal"
+  | "download_throughput"
   | "persistence_issue"
   | "download_process_issue"
   | "download_total";
@@ -43,7 +44,8 @@ export interface DiagnosticEvent {
   elapsed_since_session_start_ms: number;
   level: "info" | "warn" | "error" | "debug" | "trace";
   source: "rust" | "frontend";
-  event: "stage_started" | "stage_finished" | "fault_observed";
+  event:
+    "stage_started" | "stage_finished" | "fault_observed" | "throughput_sample";
   phase: Stage;
   status: DiagnosticStatus;
   duration_ms: number | null;
@@ -52,9 +54,35 @@ export interface DiagnosticEvent {
     attempt_id: string | null;
     error_code: string | null;
     error_kind?: string | null;
+    throughput?: ThroughputSnapshot | null;
   };
 }
+export interface ThroughputSnapshot {
+  protocol?:
+    | "unknown"
+    | "http"
+    | "https"
+    | "http_dash_segments"
+    | "m3u8"
+    | "m3u8_native"
+    | null;
+  downloader?: "ytdlp_default" | null;
+  network_mode?: "inherited" | null;
+  observed_bytes: number;
+  duration_ms: number;
+  samples: number;
+  stream_count: number;
+  mean_bps: number | null;
+  window_5s_bps: number | null;
+  window_10s_bps: number | null;
+  max_5s_bps: number | null;
+  stall_count: number;
+  stall_duration_ms: number;
+  progress_gap_ms: number;
+  final_sample: boolean;
+}
 export interface DiagnosticFilter {
+  stageView?: boolean;
   sessionId?: string;
   traceId?: string;
   taskId?: string;
@@ -129,6 +157,7 @@ export const stageLabels: Record<Stage, string> = {
   download_active: "下载阶段",
   download_postprocess: "后处理",
   download_terminal: "终态持久化",
+  download_throughput: "下载吞吐采样",
   persistence_issue: "持久化异常 · 时点",
   download_process_issue: "下载进程异常 · 时点",
   download_total: "下载尝试总用时",

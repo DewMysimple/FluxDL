@@ -88,6 +88,32 @@ fn nonobject_protocol_records_and_metadata_are_rejected() {
     assert_eq!(fact.stream_id.as_deref(), Some("137:video.f137.mp4"));
     assert!(fact.finished);
 }
+#[test]
+fn progress_protocol_is_a_whitelist_not_a_retained_private_string() {
+    use crate::diagnostics::DownloadProtocol;
+    for (raw, expected) in [
+        ("https", DownloadProtocol::Https),
+        ("http", DownloadProtocol::Http),
+        ("http_dash_segments", DownloadProtocol::HttpDashSegments),
+        ("m3u8", DownloadProtocol::M3u8),
+        ("m3u8_native", DownloadProtocol::M3u8Native),
+        (
+            "https://PRIVATE_USER:PRIVATE_TOKEN@media.invalid/signed",
+            DownloadProtocol::Unknown,
+        ),
+    ] {
+        let line = format!(
+            "__FLUX_PROGRESS__{}",
+            serde_json::json!({"progress.status":"downloading","progress.downloaded_bytes":1024,"info.protocol":raw})
+        );
+        let fact = parse_progress_fact(&line).unwrap();
+        assert_eq!(fact.protocol, Some(expected));
+        let safe = serde_json::to_string(&fact.protocol).unwrap();
+        assert!(!safe.contains("PRIVATE"));
+    }
+    let legacy = parse_progress_fact(r#"__FLUX_PROGRESS__{"downloaded_bytes":1024}"#).unwrap();
+    assert_eq!(legacy.protocol, None);
+}
 use serde_json::json;
 #[test]
 fn validates_urls_without_shell_interpretation() {

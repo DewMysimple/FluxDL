@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { isDesktop } from "../../lib/api";
 import { diagnosticsApi } from "./diagnostics-api";
 import type { DiagnosticEvent } from "./types";
+import { latestThroughput, TaskThroughput } from "./TaskThroughput";
 export function observedStatus(
   events: DiagnosticEvent[],
   sessionId?: string,
@@ -10,6 +11,7 @@ export function observedStatus(
   const latest = backend.find(
     (e) =>
       e.phase !== "download_total" &&
+      e.phase !== "download_throughput" &&
       e.phase !== "enqueue_to_progress" &&
       e.status !== "unobserved" &&
       e.status !== "notapplicable",
@@ -64,7 +66,12 @@ export function TaskDiagnosticStatus({
   traceId?: string;
   active: boolean;
 }) {
-  const [status, setStatus] = useState<string | null>(null);
+  const target = taskId ?? traceId ?? "";
+  const [observation, setObservation] = useState<{
+    target: string;
+    events: DiagnosticEvent[];
+    sessionId: string;
+  }>();
   useEffect(() => {
     if (!isDesktop || !/^[0-9a-f-]{36}$/.test(taskId ?? traceId ?? "")) return;
     let disposed = false;
@@ -74,10 +81,20 @@ export function TaskDiagnosticStatus({
       busy = true;
       try {
         const [page, health] = await Promise.all([
-          diagnosticsApi.query({ taskId, traceId, limit: 100 }),
+          diagnosticsApi.query({
+            taskId,
+            traceId,
+            stageView: true,
+            limit: 100,
+          }),
           diagnosticsApi.health(),
         ]);
-        if (!disposed) setStatus(observedStatus(page.events, health.sessionId));
+        if (!disposed)
+          setObservation({
+            target: taskId ?? traceId ?? "",
+            events: page.events,
+            sessionId: health.sessionId,
+          });
       } catch {
         /* Diagnostic failure must not disrupt task controls. */
       } finally {
@@ -93,9 +110,21 @@ export function TaskDiagnosticStatus({
       window.clearInterval(timer);
     };
   }, [taskId, traceId, active]);
-  return status ? (
-    <p className="diagnostic-observed-status" role="status">
-      已观测阶段：{status}
-    </p>
-  ) : null;
+  const current = observation?.target === target ? observation : undefined;
+  const status = observedStatus(current?.events ?? [], current?.sessionId);
+  return (
+    <>
+      {status && (
+        <p className="diagnostic-observed-status" role="status">
+          已观测阶段：{status}
+        </p>
+      )}
+      {taskId && (
+        <TaskThroughput
+          event={latestThroughput(current?.events ?? [])}
+          sessionId={current?.sessionId}
+        />
+      )}
+    </>
+  );
 }

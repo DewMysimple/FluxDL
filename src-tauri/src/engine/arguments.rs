@@ -6,7 +6,7 @@ use crate::{
 use std::path::Path;
 // Build one bounded object, then JSON-encode once. A missing scalar's `j`
 // conversion is bypassed by yt-dlp and emits bare NA, so never hand-build JSON.
-pub(super) const DOWNLOAD_PROGRESS_TEMPLATE: &str = "download:__FLUX_PROGRESS__%(.{progress.status,progress.filename,info.format_id,progress.downloaded_bytes,progress.total_bytes,progress.total_bytes_estimate,progress.speed,progress.eta}|{})j";
+pub(super) const DOWNLOAD_PROGRESS_TEMPLATE: &str = "download:__FLUX_PROGRESS__%(.{progress.status,progress.filename,info.format_id,info.protocol,progress.downloaded_bytes,progress.total_bytes,progress.total_bytes_estimate,progress.speed,progress.eta}|{})j";
 fn invalid(message: &str) -> AppError {
     AppError::new(ErrorCode::InvalidInput, ErrorPhase::Validate, message)
 }

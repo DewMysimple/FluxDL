@@ -40,3 +40,10 @@
 - Debug默认工程根`dev-logs/`；Release只能用Tauri app_log_dir，不回退源码/发行目录。日志、诊断ZIP及测试证据禁止提交；capabilities不扩大通用文件权限。
 - 耗时使用Rust Instant / 前端performance.now各自计算，解析/入队分Trace，用户选择时间不计入内部耗时。保留二次安全复核、attempt准入及durable ack后终态。
 - 相关改动执行`npm run test:diagnostics`；重复基准`benchmark:diagnostics`，真实桌面`node scripts/diagnostics-smoke.mjs <本地yt-dlp.exe>`。仅管理自有隔离debug实例，不停止用户发行版。结果及边界见`docs/engineering/diagnostics-validation.md`。
+
+## 网络速度专项
+
+- 有网络慢速问题先区分提取/复核/排队/spawn/首次进度与持续吞吐；保持相同实际格式、引擎和路由条件，缺失/短窗口不补造速度，不把不同分辨率或fixture当加速证据。
+- `npm run diagnose:youtube`只使用内存stdin授权URL和现有引擎，先通过`test:network`本地预算/代理/后代清理自检。单轮45秒/目标40MiB、总媒体预算300MiB，跨执行扣除已用字节；不把该计数称作精确wire流量。
+- 不改Clash/节点/TUN/系统代理/路由/DNS缓存/防火墙，不读取控制器密钥或订阅，不静默升级引擎；403/429停止当前测试组，不靠换客户端/认证绕过。仅对自有child用validated loopback HTTP/SOCKS作对照，默认系统代理与显式代理可能共用出口。
+- 新网络safe报告/媒体/隔离DB留ignored artifacts；产品吞吐沿用typed schema/Trace、低频采样/终态护栏，`stageView`不影响事件/导出全量。专项仅在当前功能分支提交推送，不自动合并main或覆盖其他worktree/正式产物。

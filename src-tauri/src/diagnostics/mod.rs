@@ -3,6 +3,7 @@ mod event;
 mod export;
 mod redact;
 mod report;
+mod throughput;
 mod writer;
 use crate::errors::AppError;
 pub use event::*;
@@ -21,6 +22,7 @@ use std::{
 use tauri::Emitter;
 #[cfg(not(debug_assertions))]
 use tauri::Manager as _;
+pub use throughput::{DownloadProtocol, DownloaderMode, NetworkMode, ThroughputSnapshot};
 
 pub const MEMORY_LIMIT: usize = 2000;
 pub const READ_LIMIT: usize = 20_000;
@@ -74,6 +76,8 @@ pub struct Trace {
     attempt: Option<String>,
     state: Arc<Mutex<TraceState>>,
     failure: Arc<Mutex<Option<FailureClassification>>>,
+    throughput: Arc<Mutex<throughput::Throughput>>,
+    throughput_start: Instant,
 }
 type FailureClassification = (crate::errors::ErrorCode, Option<crate::errors::ErrorKind>);
 #[derive(Default)]
@@ -221,6 +225,8 @@ impl Diagnostics {
             attempt: task.map(|_| uuid::Uuid::new_v4().to_string()),
             state: Arc::new(Mutex::new(TraceState::default())),
             failure: Arc::new(Mutex::new(None)),
+            throughput: Arc::new(Mutex::new(throughput::Throughput::default())),
+            throughput_start: Instant::now(),
         }
     }
     pub fn attach(&self, task: &str, trace: Trace) {
@@ -366,7 +372,7 @@ impl Diagnostics {
             events.push_back(event.clone());
         }
         self.shared.generation.fetch_add(1, Ordering::Relaxed);
-        let important = event.level == Level::Error || event.phase == Stage::DownloadTerminal;
+        let important = event.important();
         let result = if important {
             self.high.try_send(event)
         } else {
@@ -450,11 +456,24 @@ impl Diagnostics {
     pub fn query(&self, filter: &Filter) -> Result<Page, String> {
         filter.validate()?;
         let read = self.read_snapshot();
+        let mut latest_throughput = HashSet::new();
         let events: Vec<_> = read
             .events
             .iter()
             .rev()
             .filter(|e| filter.matches(e))
+            // Stage views retain the timeline even after long-running tasks
+            // have produced hundreds of low-frequency throughput samples.
+            // Compact only this display query, before applying pagination.
+            .filter(|event| {
+                !filter.stage_view
+                    || event.event != EventName::ThroughputSample
+                    || latest_throughput.insert((
+                        event.session_id.as_str(),
+                        event.trace_id.as_str(),
+                        event.fields.attempt_id.as_deref(),
+                    ))
+            })
             .collect();
         let total = events.len();
         let limit = if filter.limit == 0 { 100 } else { filter.limit };
@@ -531,6 +550,83 @@ impl Diagnostics {
     }
 }
 impl Trace {
+    pub fn download_progress(
+        &self,
+        bytes: u64,
+        new_stream: bool,
+        finished: bool,
+        protocol: Option<DownloadProtocol>,
+    ) {
+        let sample = {
+            let mut throughput = self.throughput.lock().unwrap_or_else(|e| e.into_inner());
+            throughput.protocol(protocol, new_stream);
+            throughput.observe(self.throughput_start.elapsed(), bytes, new_stream, finished)
+        };
+        if let Some(sample) = sample {
+            self.record_throughput(sample, Status::Ok);
+        }
+    }
+    pub fn tick_throughput(&self) {
+        let sample = self
+            .throughput
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .tick(self.throughput_start.elapsed());
+        if let Some(sample) = sample {
+            self.record_throughput(sample, Status::Ok);
+        }
+    }
+    pub fn stop_throughput(&self) {
+        self.throughput
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .stop(self.throughput_start.elapsed());
+    }
+    pub fn pause_throughput(&self) {
+        self.throughput
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .pause(self.throughput_start.elapsed());
+    }
+    pub fn finish_throughput(&self, status: Status) {
+        let sample = self
+            .throughput
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .finalize(self.throughput_start.elapsed());
+        if let Some(sample) = sample {
+            self.record_throughput(sample, status);
+        }
+    }
+    fn record_throughput(&self, sample: ThroughputSnapshot, status: Status) {
+        let Some(service) = self.service.upgrade() else {
+            return;
+        };
+        service.emit(Event {
+            schema_version: 1,
+            event_id: uuid::Uuid::new_v4().to_string(),
+            session_id: service.session.clone(),
+            trace_id: self.id.clone(),
+            span_id: uuid::Uuid::new_v4().to_string(),
+            parent_span_id: None,
+            task_id: self.task.clone(),
+            timestamp_utc: chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            elapsed_since_session_start_ms: service.start.elapsed().as_secs_f64() * 1000.0,
+            level: Level::Info,
+            source: Source::Rust,
+            event: EventName::ThroughputSample,
+            phase: Stage::DownloadThroughput,
+            status,
+            duration_ms: None,
+            fields: Fields {
+                related_trace_id: self.related.clone(),
+                attempt_id: self.attempt.clone(),
+                error_code: None,
+                error_kind: None,
+                throughput: Some(sample),
+            },
+        });
+    }
     pub fn fault(&self, stage: Stage, error: &AppError) {
         if !self
             .state
@@ -704,6 +800,7 @@ impl Trace {
                 attempt_id: self.attempt.clone(),
                 error_code,
                 error_kind,
+                throughput: None,
             },
         });
     }

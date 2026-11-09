@@ -16,6 +16,7 @@ sources: []
 | 2026-11-09 | maintenance | completed | [执行0.2.0工程优化](工程维护/2026-11-09-执行0.2.0工程优化.md) |
 | 2026-11-09 | maintenance | completed | [建立标准工程记忆与 Git 交付规则](工程维护/2026-11-09-建立标准工程记忆与Git交付规则.md) |
 | 2026-11-09 | maintenance | completed | [优化开发构建与最新产物发布](工程维护/2026-11-09-优化开发构建与最新产物发布.md) |
+| 2026-11-09 | feature | completed | [诊断YouTube网络速度并补充低频吞吐](功能添加/2026-11-09-诊断YouTube网络速度并补充低频吞吐.md) |
 | 2026-11-09 | feature | completed | [实现本地可观测性与诊断中心](功能添加/2026-11-09-实现本地可观测性与诊断中心.md) |
 
 <!-- wiki-memory:auto:end -->

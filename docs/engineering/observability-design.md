@@ -49,3 +49,9 @@ Workspace侧栏底部入口，四Tab：概览、性能、事件、异常；真�
 仅Workspace可打开可信日志目录、导出、定位最近导出。原capabilities未扩大。导出通过Rust原生保存对话框（用户选择路径），前端不能传任意目的文件；拒绝覆盖、拒绝路径祖先链接，create_new。界面先显示六个将包含的文件与本地隐私提示，再打开保存对话框。ZIP32 STORE不引入依赖，固定条目名，每条32MiB/包64MiB上限，独立Python CRC校验。environment仅系统主版本/架构、应用和安全引擎版本、固定配置摘要；Windows RtlGetVersion只取主版本，不采集用户/设备名/环境变量。privacy-manifest列排除类别，不复制SQLite、下载文件或原始stderr。生成后可Explorer定位，绝无自动上传。
 
 未实现可选debug/trace级别开关，因此没有隐含超高频记录模式。默认只记录上述阶段和错误，下载每帧进度不进JSONL。
+
+## 网络专项增量
+
+本专项在原schema1增加可选typed吞吐快照，每5秒和已确认终态采样；真实byte delta和单调时间，排除初始续传、流切换/等待与后处理，缺失窗口不补0。阶段统计/慢Trace/瀑布排除吞吐sample，报告独立小节，协议只从info.protocol映射安全枚举。Task/Trace阶段视图用受控`stageView`过滤保留全部阶段与各attempt最新采样，避免长任务样本淹没100/200条时间线；普通查询/导出全量不变。640样本边界有专项回归。
+
+自动网络实验仅在当前worktree自有目录运行，独立CLI复用生产参数而不复用下载消费层，显式代理提取与下载一致，45秒/40MiB单轮和300MiB总媒体预算、403/429停止、suspended Windows Job及输入/输出白名单。没有代理设置/并发/chunk默认改造，实际证据及未测项见network-speed-investigation.md。

@@ -100,6 +100,12 @@ Workspace侧栏底部「诊断中心」提供概览、性能、事件、异常�
 
 本地Codex先读latest-report.md，再按Trace查JSONL和源码；远程Codex不会自动获得本机日志。默认10MiB×5文件、7天保留，有界内存/写入队列，写入失败显示受限状态且下载继续。日志、诊断ZIP与测试资料被Git忽略，不进入发行包。详情、复现命令与隐私边界见[诊断使用说明](docs/diagnostics.md)、[设计](docs/engineering/observability-design.md)及[实际验收](docs/engineering/diagnostics-validation.md)。
 
+## YouTube 网络速度专项
+
+诊断中心和任务详情可显示低频5s/10s吞吐、观测均速/字节、停滞与阶段证据；不足窗口标记未测量。`npm run diagnose:youtube`可由本地Codex以stdin传授权链接和现有引擎，自动执行有预算的Manager/独立CLI/本地代理对照，无需手工切节点或拼测试命令。`npm run test:network`仅跑本地确定性夹具。
+
+本轮调查未稳定重现持续100KB/s，没有宣称下载加速或强制启用代理/并发/chunk；完整数字、样本不足与隔离分支范围见[网络专项报告](docs/engineering/network-speed-investigation.md)。该专项尚未合并主线或更新原本地正式包。
+
 ## 故障排除与边界
 
 | 情况 | 处理 |

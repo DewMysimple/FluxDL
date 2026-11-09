@@ -19,6 +19,7 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
+      - run: npm run test:network
       - run: npm run test:diagnostics
       - run: npm run release:build
       - run: npm run release:verify

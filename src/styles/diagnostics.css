@@ -269,6 +269,37 @@
   color: var(--secondary);
   font-size: 11px;
 }
+.diagnostic-throughput {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  margin: 14px 0;
+  padding: 14px;
+}
+.diagnostic-throughput h3 {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 550;
+}
+.diagnostic-throughput p {
+  font-size: 11px;
+  line-height: 1.7;
+}
+.diagnostic-throughput-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
+  gap: 12px;
+  margin: 14px 0;
+}
+.diagnostic-throughput-metrics dt {
+  color: var(--secondary);
+  font-size: 10px;
+}
+.diagnostic-throughput-metrics dd {
+  margin: 6px 0 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
 @media (max-width: 960px) {
   .diagnostic-filters {
     grid-template-columns: repeat(2, minmax(100px, 1fr));

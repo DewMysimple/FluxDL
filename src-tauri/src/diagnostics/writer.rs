@@ -374,10 +374,7 @@ pub(super) fn run(
                     .lock()
                     .unwrap_or_else(|e| e.into_inner())
                     .iter()
-                    .filter(|e| {
-                        (e.level == Level::Error || e.phase == Stage::DownloadTerminal)
-                            && !sink.written.contains(&e.event_id)
-                    })
+                    .filter(|e| e.important() && !sink.written.contains(&e.event_id))
                     .cloned(),
             );
         }

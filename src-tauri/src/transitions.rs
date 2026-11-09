@@ -271,6 +271,7 @@ mod tests {
                 progress: Some(bytes as f64 / total as f64 * 100.0),
             },
             stream_id: Some(id.into()),
+            protocol: None,
             finished: false,
         }
     }
@@ -383,6 +384,7 @@ mod tests {
         let post = ParsedProgress {
             event: ProgressEvent::Postprocessing,
             stream_id: None,
+            protocol: None,
             finished: false,
         };
         apply_progress(&mut task, &mut tracker, OutputStream::Stderr, 4, &post);

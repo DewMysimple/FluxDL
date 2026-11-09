@@ -827,6 +827,9 @@ impl Manager {
                 .filter(|control| control.id == id)
             {
                 control.cancel.cancel();
+                if let Some(trace) = self.diagnostics.task_trace(id) {
+                    trace.stop_throughput();
+                }
             }
         }
         {
@@ -865,6 +868,9 @@ impl Manager {
                 .filter(|control| control.id == id)
             {
                 control.cancel.cancel();
+                if let Some(trace) = self.diagnostics.task_trace(id) {
+                    trace.stop_throughput();
+                }
             }
             let queued_cancel = candidate.0.status == TaskStatus::Cancelled;
             if queued_cancel {
@@ -1286,6 +1292,7 @@ impl Manager {
                         TaskStatus::Cancelled => Status::Cancelled,
                         _ => Status::Failed,
                     };
+                    trace.finish_throughput(status);
                     trace.finish(Stage::DownloadTerminal, status, None);
                     trace.finish(Stage::DownloadTotal, status, None);
                     trace.missing(Stage::DownloadFirstProgress, Status::Unobserved);
@@ -1389,6 +1396,7 @@ impl Manager {
         let current_attempt = self.inner.lock().await.attempts.get(id) == Some(&control.attempt);
         if current_attempt {
             if let Some(trace) = self.diagnostics.task_trace(id) {
+                trace.stop_throughput();
                 if let Err(error) = &result {
                     trace.failure(error);
                 }
@@ -1468,6 +1476,15 @@ impl Manager {
             },
             _ => 0,
         };
+        let byte_observation = match &event {
+            DownloadEvent::Progress { fact, .. } => match &fact.event {
+                engine::ProgressEvent::Download {
+                    downloaded_bytes, ..
+                } => Some((*downloaded_bytes, fact.finished, fact.protocol)),
+                _ => None,
+            },
+            _ => None,
+        };
         let mut appended = None;
         let change = {
             let task = inner
@@ -1509,10 +1526,19 @@ impl Manager {
             if matches!(change, RuntimeChange::Progress | RuntimeChange::FullUpsert) {
                 if let Some(trace) = self.diagnostics.task_trace(id) {
                     if progress_kind == 1 {
+                        if let Some((bytes, finished, protocol)) = byte_observation {
+                            trace.download_progress(
+                                bytes,
+                                change == RuntimeChange::FullUpsert,
+                                finished,
+                                protocol,
+                            );
+                        }
                         trace.finish(Stage::DownloadFirstProgress, Status::Ok, None);
                         trace.finish(Stage::EnqueueToProgress, Status::Ok, None);
                         trace.begin(Stage::DownloadActive);
                     } else if progress_kind == 2 {
+                        trace.pause_throughput();
                         trace.finish(Stage::DownloadActive, Status::Ok, None);
                         trace.begin(Stage::DownloadPostprocess);
                     }
@@ -1560,7 +1586,22 @@ impl Manager {
     ) -> AppResult<()> {
         let mut tracker = RuntimeTracker::default();
         let mut state_failure = None;
-        while let Some(event) = download.recv().await {
+        let mut throughput_tick = tokio::time::interval(Duration::from_secs(1));
+        throughput_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            let event = tokio::select! {
+                event = download.recv() => match event { Some(event) => event, None => break },
+                _ = throughput_tick.tick() => {
+                    let current = self.inner.lock().await.attempts.get(&task.id) == Some(&control.attempt);
+                    if current {
+                        if let Some(trace) = self.diagnostics.task_trace(&task.id) {
+                            if control.cancel.is_cancelled() { trace.stop_throughput(); }
+                            else { trace.tick_throughput(); }
+                        }
+                    }
+                    continue;
+                }
+            };
             if state_failure.is_none() || matches!(&event, DownloadEvent::Diagnostic(_)) {
                 if let Err(error) = self
                     .apply_download_event(&task.id, control.attempt, &mut tracker, event)
@@ -1575,6 +1616,9 @@ impl Manager {
         }
         // Never settle/start the next task until the concrete owner has reaped
         // the child and every reader, including when applying a fact failed.
+        if let Some(trace) = self.diagnostics.task_trace(&task.id) {
+            trace.stop_throughput();
+        }
         let outcome = download.finish().await?;
         if let Some(error) = state_failure {
             return Err(error);
@@ -2705,6 +2749,136 @@ mod tests {
         std::fs::remove_dir_all(directory).unwrap();
     }
     #[tokio::test]
+    async fn throughput_uses_only_admitted_deltas_and_finalizes_after_terminal_ack() {
+        use crate::{
+            engine::{ParsedProgress, ProgressEvent},
+            process::OutputStream,
+        };
+        let directory = std::env::temp_dir().join(format!(
+            "fluxdl-throughput-admission-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let id = uuid::Uuid::new_v4().to_string();
+        let manager = isolated_manager(
+            &directory,
+            vec![fixture_task(&id, TaskStatus::Resolving, &directory)],
+        )
+        .await;
+        manager.inner.lock().await.attempts.insert(id.clone(), 1);
+        let trace = manager.diagnostics.trace(None, None, Some(&id));
+        manager.diagnostics.attach(&id, trace.clone());
+        let mut tracker = RuntimeTracker::default();
+        let progress = |sequence, name: &str, bytes, finished| DownloadEvent::Progress {
+            stream: OutputStream::Stdout,
+            sequence,
+            fact: ParsedProgress {
+                event: ProgressEvent::Download {
+                    downloaded_bytes: bytes,
+                    total_bytes: None,
+                    speed: None,
+                    eta: None,
+                    progress: None,
+                },
+                stream_id: Some(name.into()),
+                protocol: None,
+                finished,
+            },
+        };
+        manager
+            .apply_download_event(&id, 1, &mut tracker, progress(1, "video", 1000, false))
+            .await
+            .unwrap();
+        manager
+            .apply_download_event(&id, 1, &mut tracker, progress(2, "video", 2024, true))
+            .await
+            .unwrap();
+        // A component's postprocessing must pause observation, without preventing the next stream.
+        manager
+            .apply_download_event(
+                &id,
+                1,
+                &mut tracker,
+                DownloadEvent::Progress {
+                    stream: OutputStream::Stdout,
+                    sequence: 3,
+                    fact: ParsedProgress {
+                        event: ProgressEvent::Postprocessing,
+                        stream_id: None,
+                        protocol: None,
+                        finished: false,
+                    },
+                },
+            )
+            .await
+            .unwrap();
+        manager
+            .apply_download_event(&id, 1, &mut tracker, progress(4, "audio", 5000, false))
+            .await
+            .unwrap();
+        manager
+            .apply_download_event(&id, 99, &mut tracker, progress(5, "audio", 999_999, false))
+            .await
+            .unwrap();
+        manager
+            .apply_download_event(&id, 1, &mut tracker, progress(5, "audio", 6024, true))
+            .await
+            .unwrap();
+        manager
+            .apply_download_event(&id, 1, &mut tracker, progress(6, "video", 99_999, true))
+            .await
+            .unwrap();
+        assert!(!manager.diagnostics.read().events.iter().any(|e| e
+            .fields
+            .throughput
+            .as_ref()
+            .is_some_and(|v| v.final_sample)));
+        let control = Control {
+            id: id.clone(),
+            attempt: 1,
+            cancel: Cancellation::default(),
+        };
+        manager
+            .finish_task(
+                &id,
+                &control,
+                Err(AppError::new(
+                    ErrorCode::ProcessExit,
+                    ErrorPhase::Download,
+                    "fixture failure",
+                )),
+            )
+            .await
+            .unwrap();
+        let final_events: Vec<_> = manager
+            .diagnostics
+            .read()
+            .events
+            .into_iter()
+            .filter(|e| e.fields.throughput.as_ref().is_some_and(|v| v.final_sample))
+            .collect();
+        assert_eq!(final_events.len(), 1);
+        assert_eq!(final_events[0].status, Status::Failed);
+        let sample = final_events[0].fields.throughput.as_ref().unwrap();
+        assert_eq!(sample.observed_bytes, 2048);
+        assert_eq!(sample.stream_count, 2);
+        assert_eq!(sample.samples, 4);
+        manager.retry(&id).await.unwrap();
+        let next_trace = manager.diagnostics.task_trace(&id).unwrap();
+        assert_ne!(trace.id(), next_trace.id());
+        manager
+            .apply_download_event(&id, 1, &mut tracker, progress(7, "old", 10_000, false))
+            .await
+            .unwrap();
+        next_trace.finish_throughput(Status::Cancelled);
+        assert!(!manager
+            .diagnostics
+            .read()
+            .events
+            .iter()
+            .any(|e| e.trace_id == next_trace.id() && e.fields.throughput.is_some()));
+        manager.shutdown().await.unwrap();
+    }
+    #[tokio::test]
     async fn typed_runtime_new_stream_resets_with_full_upsert_and_rejects_old_attempts_and_exits() {
         use crate::{
             engine::{ParsedProgress, ProgressEvent},
@@ -2737,6 +2911,7 @@ mod tests {
                         progress: Some(downloaded_bytes as f64 / total as f64 * 100.0),
                     },
                     stream_id: Some(name.into()),
+                    protocol: None,
                     finished,
                 },
             }
@@ -2774,6 +2949,7 @@ mod tests {
                     fact: ParsedProgress {
                         event: ProgressEvent::Postprocessing,
                         stream_id: None,
+                        protocol: None,
                         finished: false,
                     },
                 },

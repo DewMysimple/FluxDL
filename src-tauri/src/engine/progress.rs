@@ -18,6 +18,7 @@ pub struct ParsedProgress {
     pub event: ProgressEvent,
     pub stream_id: Option<String>,
     pub finished: bool,
+    pub protocol: Option<crate::diagnostics::DownloadProtocol>,
 }
 
 pub fn parse_progress_fact(line: &str) -> Option<ParsedProgress> {
@@ -54,6 +55,16 @@ pub fn parse_progress_fact(line: &str) -> Option<ParsedProgress> {
         event,
         stream_id,
         finished,
+        protocol: object
+            .as_ref()
+            .and_then(|value| {
+                value
+                    .get("info.protocol")
+                    .or_else(|| value.get("protocol"))
+                    .or_else(|| value.pointer("/info_dict/protocol"))
+            })
+            .and_then(Value::as_str)
+            .map(crate::diagnostics::DownloadProtocol::from_engine),
     })
 }
 

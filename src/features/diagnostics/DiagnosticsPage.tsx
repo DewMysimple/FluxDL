@@ -14,6 +14,12 @@ import { Button } from "../../components/ui";
 import { Modal } from "../../components/overlays";
 import { diagnosticsApi } from "./diagnostics-api";
 import {
+  diagnosticStatusLabel,
+  latestThroughput,
+  TaskThroughput,
+  throughputSpeed,
+} from "./TaskThroughput";
+import {
   stageLabels,
   statusLabels,
   type DiagnosticEvent,
@@ -87,7 +93,11 @@ export function DiagnosticsPage({
         diagnosticsApi.overview(filter),
         diagnosticsApi.health(),
         trace
-          ? diagnosticsApi.query({ traceId: trace, limit: 200 })
+          ? diagnosticsApi.query({
+              traceId: trace,
+              stageView: true,
+              limit: 200,
+            })
           : Promise.resolve(null),
       ]);
       if (request !== generation.current.value) return;
@@ -150,7 +160,12 @@ export function DiagnosticsPage({
     starts.get(e.span_id)?.elapsed_since_session_start_ms ??
     e.elapsed_since_session_start_ms;
   const stages = [
-    ...new Map([...traceEvents].reverse().map((e) => [e.span_id, e])).values(),
+    ...new Map(
+      [...traceEvents]
+        .reverse()
+        .filter((e) => e.phase !== "download_throughput")
+        .map((e) => [e.span_id, e]),
+    ).values(),
   ].sort((a, b) => startMs(a) - startMs(b));
   const longest = Math.max(1, ...stages.map((e) => e.duration_ms ?? 0));
   const origin = Math.min(
@@ -495,6 +510,10 @@ export function DiagnosticsPage({
             </p>
           ) : (
             <>
+              <TaskThroughput
+                event={latestThroughput(traceEvents)}
+                sessionId={health?.sessionId}
+              />
               <div className="diagnostic-trace-heading">
                 <h2>阶段时间轴</h2>
                 <code>{trace}</code>
@@ -660,9 +679,13 @@ export function DiagnosticsPage({
                       )}
                     </td>
                     <td>
-                      {statusLabels[e.status]}
+                      {diagnosticStatusLabel(e)}
                       <small>
-                        {e.duration_ms == null ? "—" : ms(e.duration_ms)}
+                        {e.fields.throughput
+                          ? `5 秒窗口 ${throughputSpeed(e.fields.throughput.window_5s_bps)}`
+                          : e.duration_ms == null
+                            ? "—"
+                            : ms(e.duration_ms)}
                       </small>
                     </td>
                     <td>

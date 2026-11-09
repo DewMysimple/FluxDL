@@ -24,6 +24,7 @@ pub enum Stage {
     DownloadEngineSpawn,
     DownloadFirstProgress,
     DownloadActive,
+    DownloadThroughput,
     DownloadPostprocess,
     DownloadTerminal,
     PersistenceIssue,
@@ -52,6 +53,7 @@ impl Stage {
             Self::DownloadEngineSpawn => "下载进程启动",
             Self::DownloadFirstProgress => "进程启动到首次有效进度",
             Self::DownloadActive => "下载阶段",
+            Self::DownloadThroughput => "下载吞吐观测",
             Self::DownloadPostprocess => "后处理",
             Self::DownloadTerminal => "终态持久化",
             Self::PersistenceIssue => "持久化异常（时点）",
@@ -87,6 +89,8 @@ pub struct Fields {
     pub attempt_id: Option<String>,
     pub error_code: Option<ErrorCode>,
     pub error_kind: Option<crate::errors::ErrorKind>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub throughput: Option<super::ThroughputSnapshot>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -121,11 +125,21 @@ pub enum EventName {
     StageStarted,
     StageFinished,
     FaultObserved,
+    ThroughputSample,
 }
 pub fn valid_id(value: &str) -> bool {
     value.len() == 36 && uuid::Uuid::parse_str(value).is_ok_and(|id| id.to_string() == value)
 }
 impl Event {
+    pub(super) fn important(&self) -> bool {
+        self.level == Level::Error
+            || self.phase == Stage::DownloadTerminal
+            || self
+                .fields
+                .throughput
+                .as_ref()
+                .is_some_and(|v| v.final_sample)
+    }
     pub fn valid(&self) -> bool {
         self.schema_version == 1
             && [
@@ -151,11 +165,21 @@ impl Event {
             && self
                 .duration_ms
                 .is_none_or(|v| v.is_finite() && (0.0..=604_800_000.0).contains(&v))
+            && ((self.phase == Stage::DownloadThroughput)
+                == (self.event == EventName::ThroughputSample && self.fields.throughput.is_some()))
+            && self.fields.throughput.as_ref().is_none_or(|v| {
+                self.phase == Stage::DownloadThroughput
+                    && self.event == EventName::ThroughputSample
+                    && self.duration_ms.is_none()
+                    && self.source == Source::Rust
+                    && v.valid()
+            })
     }
 }
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default, deny_unknown_fields)]
 pub struct Filter {
+    pub stage_view: bool,
     pub session_id: Option<String>,
     pub trace_id: Option<String>,
     pub task_id: Option<String>,
@@ -173,6 +197,7 @@ impl Filter {
         if self.limit > 200
             || self.cursor > 100_000
             || self.search.len() > 120
+            || (self.stage_view && self.task_id.is_none() && self.trace_id.is_none())
             || [
                 self.session_id.as_ref(),
                 self.trace_id.as_ref(),

@@ -9,6 +9,16 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import { startMediaServer } from "./test-media-server.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const debugPortValue = process.env.FLUXDL_TEST_DEBUG_PORT ?? "9322";
+const debugPort = Number(debugPortValue);
+assert(
+  /^\d+$/.test(debugPortValue) &&
+    Number.isInteger(debugPort) &&
+    debugPort >= 1024 &&
+    debugPort <= 65535,
+  "FLUXDL_TEST_DEBUG_PORT must be an integer from 1024 to 65535",
+);
+const cdpEndpoint = `http://127.0.0.1:${debugPort}`;
 const engine = fs.realpathSync(process.argv[2]);
 const run = path.join(
   root,
@@ -33,7 +43,7 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 await new Promise((resolve, reject) => {
   const server = net.createServer();
   server.once("error", reject);
-  server.listen(9322, "127.0.0.1", () => server.close(resolve));
+  server.listen(debugPort, "127.0.0.1", () => server.close(resolve));
 });
 const fixture = await startMediaServer();
 let app, browser, workspace, quick;
@@ -48,6 +58,7 @@ async function launch() {
     env: {
       ...process.env,
       FLUXDL_TEST_DATA_DIR: data,
+      FLUXDL_TEST_DEBUG_PORT: String(debugPort),
       WEBVIEW2_USER_DATA_FOLDER: path.join(data, "webview"),
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -59,7 +70,7 @@ async function launch() {
     if (app.exitCode !== null)
       throw new Error(`owned app exited ${app.exitCode}`);
     try {
-      if ((await fetch("http://127.0.0.1:9322/json/version")).ok) {
+      if ((await fetch(`${cdpEndpoint}/json/version`)).ok) {
         ready = true;
         break;
       }
@@ -74,16 +85,20 @@ async function launch() {
     [
       "-NoProfile",
       "-Command",
-      "$expected=[int]$env:FLUXDL_OWNED_APP_PID; $connections=@(Get-NetTCPConnection -LocalPort 9322 -State Listen -ErrorAction Stop); if (!$connections.Count) {throw 'No diagnostic listener'}; foreach ($c in $connections) {$candidate=[int]$c.OwningProcess; $found=$false; for($depth=0;$depth -lt 12;$depth++){if($candidate -eq $expected){$found=$true;break}; $p=Get-CimInstance Win32_Process -Filter ('ProcessId='+$candidate); if(!$p){break};$candidate=[int]$p.ParentProcessId};if(!$found){throw 'Diagnostic listener is not owned by this child'}}",
+      "$expected=[int]$env:FLUXDL_OWNED_APP_PID; $port=[int]$env:FLUXDL_TEST_DEBUG_PORT; $connections=@(Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction Stop); if (!$connections.Count) {throw 'No diagnostic listener'}; foreach ($c in $connections) {$candidate=[int]$c.OwningProcess; $found=$false; for($depth=0;$depth -lt 12;$depth++){if($candidate -eq $expected){$found=$true;break}; $p=Get-CimInstance Win32_Process -Filter ('ProcessId='+$candidate); if(!$p){break};$candidate=[int]$p.ParentProcessId};if(!$found){throw 'Diagnostic listener is not owned by this child'}}",
     ],
     {
       windowsHide: true,
       encoding: "utf8",
-      env: { ...process.env, FLUXDL_OWNED_APP_PID: String(app.pid) },
+      env: {
+        ...process.env,
+        FLUXDL_OWNED_APP_PID: String(app.pid),
+        FLUXDL_TEST_DEBUG_PORT: String(debugPort),
+      },
     },
   );
   assert.equal(owner.status, 0, owner.stderr);
-  browser = await chromium.connectOverCDP("http://127.0.0.1:9322");
+  browser = await chromium.connectOverCDP(cdpEndpoint);
   for (let i = 0; i < 80; i++) {
     const pages = browser.contexts().flatMap((c) => c.pages());
     workspace = pages.find(
@@ -243,6 +258,86 @@ try {
   report.measurements = overview.statistics;
   report.engineVersion = (await rpc("get_app_state")).engines.ytdlp.version;
   pass("Trace含实际二次校验、DB、排队、真正spawn、首次有效进度及持久终态");
+  const throughputRecords = (
+    await rpc("query_diagnostic_events", {
+      filter: {
+        taskId: report.firstTask,
+        phase: "download_throughput",
+        limit: 200,
+      },
+    })
+  ).events;
+  const throughputEvent = throughputRecords.find(
+    (e) => e.event === "throughput_sample" && e.fields.throughput?.final_sample,
+  );
+  assert(
+    throughputEvent,
+    "completed real task must have a final throughput sample",
+  );
+  const throughput = throughputEvent.fields.throughput;
+  const terminalEvent = page.events.find(
+    (e) => e.phase === "download_terminal",
+  );
+  assert.equal(throughputEvent.source, "rust");
+  assert.equal(throughputEvent.status, "ok");
+  assert.equal(throughputEvent.task_id, report.firstTask);
+  assert.equal(throughputEvent.trace_id, trace);
+  assert.equal(
+    throughputEvent.fields.attempt_id,
+    terminalEvent.fields.attempt_id,
+  );
+  assert.equal(throughputEvent.session_id, health.sessionId);
+  assert(throughputRecords.every((e) => e.duration_ms === null));
+  for (const key of [
+    "observed_bytes",
+    "samples",
+    "stream_count",
+    "stall_count",
+  ])
+    assert(Number.isSafeInteger(throughput[key]) && throughput[key] >= 0, key);
+  assert(throughput.observed_bytes > 0);
+  assert(throughput.samples >= 2);
+  for (const key of ["duration_ms", "stall_duration_ms", "progress_gap_ms"])
+    assert(Number.isFinite(throughput[key]) && throughput[key] >= 0, key);
+  for (const key of [
+    "mean_bps",
+    "window_5s_bps",
+    "window_10s_bps",
+    "max_5s_bps",
+  ])
+    assert(
+      throughput[key] === null ||
+        (Number.isFinite(throughput[key]) && throughput[key] >= 0),
+      key,
+    );
+  if (throughput.duration_ms < 5000)
+    assert.equal(throughput.window_5s_bps, null);
+  if (throughput.duration_ms < 10000)
+    assert.equal(throughput.window_10s_bps, null);
+  assert.equal(throughput.protocol, "http");
+  assert.equal(throughput.downloader, "ytdlp_default");
+  assert.equal(throughput.network_mode, "inherited");
+  report.throughputSample = {
+    ...throughput,
+    sample_kind:
+      "original loopback HTTP; short transfer; not Internet steady-state evidence",
+  };
+  pass("真实任务最终吞吐样本关联同Trace与attempt，数值合法且不冒充阶段耗时");
+  const automaticReport = fs.readFileSync(
+    path.join(root, "dev-logs/latest-report.md"),
+    "utf8",
+  );
+  assert(automaticReport.includes("## 下载吞吐诊断"));
+  const throughputLine = automaticReport
+    .split("\n")
+    .find(
+      (line) =>
+        line.includes(`任务 \`${report.firstTask}\``) &&
+        line.includes(`Trace \`${trace}\``),
+    );
+  assert(throughputLine?.includes(`观测${throughput.observed_bytes}字节`));
+  assert(automaticReport.includes("5s/10s窗口不足时为未观测"));
+  pass("真实本地报告包含同任务吞吐数值与窗口不足说明");
   await rpc("show_task_diagnostics", { taskId: report.firstTask });
   await workspace.getByRole("heading", { name: "诊断中心." }).waitFor();
   await workspace
@@ -250,6 +345,64 @@ try {
     .first()
     .click();
   await workspace.getByRole("heading", { name: "阶段时间轴" }).waitFor();
+  const throughputRegion = workspace.getByRole("region", {
+    name: "下载吞吐诊断",
+  });
+  await throughputRegion.waitFor();
+  const metricText = (label) =>
+    throughputRegion
+      .locator("dl > div")
+      .filter({ hasText: label })
+      .locator("dd")
+      .innerText();
+  const readableBytes = (value) => {
+    const units = ["B", "KiB", "MiB", "GiB", "TiB"];
+    let index = 0;
+    while (value >= 1024 && index < units.length - 1) {
+      value /= 1024;
+      index++;
+    }
+    return `${value.toFixed(index ? 2 : 0)} ${units[index]}`;
+  };
+  assert.equal(
+    await metricText("累计观测字节"),
+    readableBytes(throughput.observed_bytes),
+  );
+  assert.equal(
+    await metricText("下载观测时长"),
+    `${(throughput.duration_ms / 1000).toFixed(1)} 秒`,
+  );
+  assert.equal(
+    await metricText("观测均速"),
+    throughput.mean_bps == null
+      ? "未测量"
+      : `${readableBytes(throughput.mean_bps)}/s`,
+  );
+  for (const [label, value] of [
+    ["5 秒窗口", throughput.window_5s_bps],
+    ["10 秒窗口", throughput.window_10s_bps],
+  ])
+    assert.equal(
+      await metricText(label),
+      value == null ? "未测量" : `${readableBytes(value)}/s`,
+    );
+  assert.equal(await metricText("媒体协议"), "HTTP");
+  assert.equal(await metricText("下载器配置"), "yt-dlp 默认选择");
+  assert.equal(await metricText("网络配置"), "继承网络环境（实际路由未确认）");
+  await throughputRegion.getByText(/最终采样 · 已完成/).waitFor();
+  await throughputRegion.getByText(/窗口不足时为未测量/).waitFor();
+  await workspace
+    .getByText("样本不足；仅经验分位数", { exact: true })
+    .first()
+    .waitFor();
+  assert.equal(
+    await workspace
+      .locator(".diagnostic-span")
+      .getByText("下载吞吐采样", { exact: true })
+      .count(),
+    0,
+  );
+  pass("真实WebView吞吐区域逐项匹配后端事件，标明低样本与未确认实际路由");
   await workspace.getByLabel("Trace排序").selectOption("slow");
   assert(
     (await workspace.locator(".diagnostic-trace-list button").count()) > 0,
@@ -291,6 +444,14 @@ try {
   await workspace.getByRole("button", { name: "应用筛选" }).click();
   await wait(500);
   pass("事件搜索与受控分页接口运行");
+  // Export this task's full Trace, including the newly verified throughput records.
+  await workspace.getByLabel("搜索诊断").fill("");
+  await workspace.getByRole("button", { name: "应用筛选" }).click();
+  await workspace
+    .locator(".diagnostic-event-table tbody tr")
+    .filter({ hasText: "throughput_sample" })
+    .first()
+    .waitFor();
   await workspace
     .getByRole("button", { name: "导出诊断包", exact: true })
     .click();
@@ -331,13 +492,16 @@ try {
     "python",
     [
       "-c",
-      "import sys,zipfile,json; z=zipfile.ZipFile(sys.argv[1]); assert z.testzip() is None; assert len(z.namelist())==6; t=b'\\n'.join(z.read(n) for n in z.namelist()); assert b'FIXTURE_PRIVATE_SIGNATURE' not in t; assert b'Users' not in t",
+      "import sys,zipfile,json; z=zipfile.ZipFile(sys.argv[1]); assert z.testzip() is None; assert len(z.namelist())==6; t=b'\\n'.join(z.read(n) for n in z.namelist()); assert b'FIXTURE_PRIVATE_SIGNATURE' not in t; assert b'Users' not in t; events=[json.loads(s) for s in z.read('events.jsonl').splitlines()]; e=next(e for e in events if e['event']=='throughput_sample' and e['trace_id']==sys.argv[2] and e['fields']['throughput']['final_sample']); assert e['duration_ms'] is None; assert e['fields']['throughput']['observed_bytes']==int(sys.argv[3]); summary=z.read('summary.md').decode(); assert '## 下载吞吐诊断' in summary; assert ('观测'+sys.argv[3]+'字节') in summary",
       exportPath,
+      trace,
+      String(throughput.observed_bytes),
     ],
     { windowsHide: true, encoding: "utf8" },
   );
   assert.equal(zip.status, 0, zip.stderr);
   pass("真实原生保存对话框确认、ZIP导出及独立CRC/隐私检查");
+  pass("实际ZIP共享同Trace最终吞吐事件与数值报告，未伪造5秒或10秒稳态");
   await workspace.getByRole("button", { name: "定位导出文件" }).click();
   await workspace
     .getByText("已请求定位最近导出文件", { exact: true })

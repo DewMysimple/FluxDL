@@ -63,11 +63,22 @@ pub fn run() {
     // This diagnostic port exists only in explicit debug smoke runs, never in release builds.
     #[cfg(debug_assertions)]
     if std::env::var_os("FLUXDL_TEST_DATA_DIR").is_some() {
+        let debug_port = std::env::var_os("FLUXDL_TEST_DEBUG_PORT")
+            .map(|value| {
+                value
+                    .to_str()
+                    .filter(|value| value.bytes().all(|b| b.is_ascii_digit()))
+                    .and_then(|value| value.parse::<u16>().ok())
+                    .filter(|port| *port >= 1024)
+                    .expect("FLUXDL_TEST_DEBUG_PORT must be an integer from 1024 to 65535")
+            })
+            .unwrap_or(9322);
         // The smoke launcher sets WEBVIEW2_USER_DATA_FOLDER for this child.
         // This Tauri runtime does not forward the config data_directory field.
         for window in &mut context.config_mut().app.windows {
-            window.additional_browser_args =
-                Some("--remote-debugging-address=127.0.0.1 --remote-debugging-port=9322".into());
+            window.additional_browser_args = Some(format!(
+                "--remote-debugging-address=127.0.0.1 --remote-debugging-port={debug_port}"
+            ));
         }
     }
     let builder = tauri::Builder::default();

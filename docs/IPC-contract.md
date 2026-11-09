@@ -45,3 +45,9 @@ diagnostic_commands.rs注册get_diagnostics_health、query_diagnostic_events(fil
 日志文件Event采用snake_case schema_version=1，fields为白名单；错误保留稳定error_code和可选源操作error_kind，不包含原始stderr。普通状态IPC的session/revision与诊断session完全独立；原AppEvent、tombstone、快照原子日志flush及6秒checkpoint不变。
 
 系统目录/导出/定位只允许workspace窗口；导出目的地由Rust原生save dialog选择，无前端任意路径参数，拒绝覆盖。诊断查询两窗可用，capabilities未扩大。diagnostics-locate-task只发给workspace，diagnostics-changed是独立低频提示，不占任务revision。UI每2秒读真实诊断，历史页不自动翻动。完整schema与阶段语义见[设计](engineering/observability-design.md)。
+
+## 专项分支：吞吐事件与阶段展示
+
+schema1 `Fields.throughput`为可选typed对象，旧事件缺字段按None读取；含观测字节、时长、样本/流计数、均速、5s/10s/5s峰值、无增长观测和final_sample，以及可选安全协议/下载器/网络模式枚举。新阶段`download_throughput`、事件`throughput_sample`不带跨度duration_ms，不混入原阶段统计或瀑布。
+
+`query_diagnostic_events`的Filter新增可选`stageView`（默认false）；true要求taskId或traceId范围，匹配后、分页前将每session/trace/attempt吞吐合并为最新一条，保留所有普通阶段/异常。事件列表默认分页、overview和export仍使用全部匹配事件，20,000上限与截断提示不变。普通业务任务DTO、设置、session/revision/attempt护栏及capabilities均未更改。

@@ -8,7 +8,10 @@ import {
 } from "@testing-library/react";
 import { DiagnosticsPage } from "../features/diagnostics/DiagnosticsPage";
 import { diagnosticsApi } from "../features/diagnostics/diagnostics-api";
-import { observedStatus } from "../features/diagnostics/TaskDiagnosticStatus";
+import {
+  observedStatus,
+  TaskDiagnosticStatus,
+} from "../features/diagnostics/TaskDiagnosticStatus";
 import type {
   DiagnosticEvent,
   Health,
@@ -115,6 +118,26 @@ it("only describes observed stages, with no timer-based connecting state", () =>
     "上一会话已结束",
   );
 });
+it("requests the bounded stage view for task details and still accepts older events", async () => {
+  vi.mocked(diagnosticsApi.query).mockResolvedValue({
+    events: [{ ...event, phase: "download_first_progress", status: "started" }],
+    total: 1,
+    nextCursor: null,
+    unreadableLines: 0,
+    truncated: false,
+  });
+  render(<TaskDiagnosticStatus taskId={task} active={false} />);
+  expect(
+    await screen.findByText("已观测阶段：进程运行，等待首次有效进度"),
+  ).toBeTruthy();
+  expect(diagnosticsApi.query).toHaveBeenCalledWith({
+    taskId: task,
+    traceId: undefined,
+    stageView: true,
+    limit: 100,
+  });
+  expect(screen.getByText(/尚无持续下载吞吐记录/)).toBeTruthy();
+});
 it("shows a truthful empty state and performs trusted report/directory actions", async () => {
   render(<DiagnosticsPage onTask={vi.fn()} />);
   expect(await screen.findByText("暂无诊断数据")).toBeTruthy();
@@ -208,4 +231,63 @@ it("keeps diagnostic storage failures visible and never claims a successful expo
   expect(await screen.findByText("日志写入受限 · 下载继续运行")).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "打开日志目录" }));
   expect((await screen.findByRole("alert")).textContent).toBe("日志目录不可写");
+});
+it("renders throughput beside a Trace without turning low-frequency samples into completed spans", async () => {
+  const sample: DiagnosticEvent = {
+    ...event,
+    event_id: "33333333-3333-4333-8333-333333333333",
+    span_id: "44444444-4444-4444-8444-444444444444",
+    phase: "download_throughput",
+    event: "throughput_sample",
+    status: "ok",
+    fields: {
+      ...event.fields,
+      throughput: {
+        observed_bytes: 1024,
+        duration_ms: 5000,
+        samples: 6,
+        stream_count: 1,
+        mean_bps: 204.8,
+        window_5s_bps: 204.8,
+        window_10s_bps: null,
+        max_5s_bps: 204.8,
+        stall_count: 0,
+        stall_duration_ms: 0,
+        progress_gap_ms: 0,
+        final_sample: false,
+      },
+    },
+  };
+  vi.mocked(diagnosticsApi.query).mockResolvedValue({
+    events: [sample, event],
+    total: 2,
+    nextCursor: null,
+    unreadableLines: 0,
+    truncated: false,
+  });
+  const result = render(
+    <DiagnosticsPage initialTask={task} onTask={vi.fn()} />,
+  );
+  fireEvent.click(
+    await screen.findByRole("button", { name: new RegExp(trace) }),
+  );
+  expect(
+    await screen.findByRole("region", { name: "下载吞吐诊断" }),
+  ).toBeTruthy();
+  expect(screen.getByText("1.00 KiB")).toBeTruthy();
+  expect(result.container.querySelectorAll(".diagnostic-span")).toHaveLength(1);
+  expect(diagnosticsApi.query).toHaveBeenCalledWith({
+    traceId: trace,
+    stageView: true,
+    limit: 200,
+  });
+  expect(
+    vi
+      .mocked(diagnosticsApi.query)
+      .mock.calls.filter(([filter]) => filter?.limit === 100)
+      .every(([filter]) => filter?.stageView === undefined),
+  ).toBe(true);
+  fireEvent.click(screen.getByRole("tab", { name: "事件" }));
+  expect(await screen.findByText("采样有效")).toBeTruthy();
+  expect(screen.getByText("5 秒窗口 205 B/s")).toBeTruthy();
 });
