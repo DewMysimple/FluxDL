@@ -10,6 +10,11 @@ use std::path::PathBuf;
 
 #[derive(Debug)]
 pub enum DownloadEvent {
+    BeforeDownload {
+        stream: OutputStream,
+        sequence: u64,
+        observed_at: std::time::Instant,
+    },
     Progress {
         stream: OutputStream,
         sequence: u64,
@@ -25,6 +30,7 @@ pub enum DownloadEvent {
 pub struct EngineDownload {
     process: process::DownloadHandle,
     last_failure: Option<crate::errors::ErrorKind>,
+    before_marker: String,
 }
 pub fn start_download(
     task: &DownloadTask,
@@ -41,7 +47,20 @@ pub fn start_download_traced(
     cancel: Cancellation,
     trace: Option<crate::diagnostics::Trace>,
 ) -> AppResult<EngineDownload> {
-    let args = build_download_args(task, settings, diagnostics)?;
+    let mut args = build_download_args(task, settings, diagnostics)?;
+    let marker = if diagnostics.ytdlp.before_dl_supported {
+        format!("__FLUX_BEFORE_{}__%", uuid::Uuid::new_v4().simple())
+    } else {
+        String::new()
+    };
+    // A template escape makes this a literal, rather than a missing field name.
+    let end = args.len() - 2;
+    if !marker.is_empty() {
+        args.splice(
+            end..end,
+            ["--print".into(), format!("before_dl:{}%", marker)],
+        );
+    }
     let executable = diagnostics.ytdlp.path.as_ref().ok_or_else(|| {
         AppError::new(
             ErrorCode::DependencyUnavailable,
@@ -61,6 +80,7 @@ pub fn start_download_traced(
     Ok(EngineDownload {
         process,
         last_failure: None,
+        before_marker: marker,
     })
 }
 impl EngineDownload {
@@ -69,12 +89,24 @@ impl EngineDownload {
         Self {
             process,
             last_failure: None,
+            before_marker: String::new(),
         }
     }
     pub async fn recv(&mut self) -> Option<DownloadEvent> {
         loop {
             match self.process.recv().await? {
                 ProcessEvent::Line(output) => {
+                    if output.stream == OutputStream::Stdout
+                        && !output.truncated
+                        && !self.before_marker.is_empty()
+                        && output.text == self.before_marker
+                    {
+                        return Some(DownloadEvent::BeforeDownload {
+                            stream: output.stream,
+                            sequence: output.sequence,
+                            observed_at: output.observed_at,
+                        });
+                    }
                     if !output.truncated {
                         if let Some(fact) = parse_progress_fact(&output.text) {
                             return Some(DownloadEvent::Progress {

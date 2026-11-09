@@ -38,6 +38,8 @@ impl Default for Settings {
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct EngineInfo {
+    #[serde(default)]
+    pub before_dl_supported: bool,
     pub path: Option<String>,
     pub version: Option<String>,
     pub source: String,
@@ -69,6 +71,8 @@ pub struct FormatOption {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MediaInfo {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trusted_preview_ref: Option<String>,
     pub url: String,
     pub title: String,
     pub media_id: String,

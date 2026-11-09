@@ -233,6 +233,7 @@ mod tests {
         DownloadTask {
             id: "transition-test".into(),
             media: MediaInfo {
+                trusted_preview_ref: None,
                 url: "https://example.com/a".into(),
                 title: "a".into(),
                 media_id: "a".into(),

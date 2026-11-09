@@ -582,3 +582,89 @@ fn rotation_counts_the_current_file_even_after_the_wall_clock_moves_backwards() 
     s.flush().unwrap();
     assert_eq!(std::fs::read_dir(sessions).unwrap().count(), 5);
 }
+
+#[test]
+fn task_queries_include_pre_admission_stages_and_keep_unrelated_tasks_out() {
+    let service = Diagnostics::disabled();
+    let trace = service.trace(None, None, None);
+    trace.begin(Stage::EnqueueTrustedValidate);
+    trace.cache_outcome(CacheOutcome::Hit);
+    trace.finish(Stage::EnqueueTrustedValidate, Status::Ok, None);
+    let task = uuid::Uuid::new_v4().to_string();
+    let attached = trace.with_task(&task);
+    attached.begin(Stage::EnqueuePersist);
+    attached.finish(Stage::EnqueuePersist, Status::Ok, None);
+    let page = service
+        .query(&Filter {
+            task_id: Some(task),
+            ..Default::default()
+        })
+        .unwrap();
+    assert!(page
+        .events
+        .iter()
+        .any(|e| e.phase == Stage::PreviewCacheDecision
+            && e.fields.cache_outcome == Some(CacheOutcome::Hit)));
+    assert!(page
+        .events
+        .iter()
+        .any(|e| e.phase == Stage::EnqueueTrustedValidate && e.status == Status::Ok));
+    assert_eq!(
+        service
+            .query(&Filter {
+                task_id: Some(uuid::Uuid::new_v4().to_string()),
+                ..Default::default()
+            })
+            .unwrap()
+            .total,
+        0
+    );
+}
+#[test]
+fn statistics_never_average_sessions_environments_or_cache_paths_and_old_events_stay_readable() {
+    let first = Diagnostics::disabled();
+    let second = Diagnostics::disabled();
+    let mut engines = crate::models::EngineDiagnostics::default();
+    engines.ytdlp.version = Some("2026.07.04".into());
+    first.set_engine_versions(&engines);
+    engines.ytdlp.version = Some("2026.10.26".into());
+    second.set_engine_versions(&engines);
+    for (service, policy) in [
+        (&first, CacheOutcome::Hit),
+        (&first, CacheOutcome::Disabled),
+        (&second, CacheOutcome::Hit),
+    ] {
+        let t = service.trace(None, None, None);
+        t.cache_outcome(policy);
+        t.begin(Stage::EnqueueToProgress);
+        t.finish(Stage::EnqueueToProgress, Status::Ok, None);
+    }
+    let mut events = first.read().events;
+    events.extend(second.read().events);
+    let overview = report::overview(events, &first.session, 0, false);
+    let stats: Vec<_> = overview
+        .statistics
+        .iter()
+        .filter(|s| s.phase == Stage::EnqueueToProgress)
+        .collect();
+    assert_eq!(stats.len(), 3);
+    assert_eq!(overview.cache_stats.hit, 2);
+    assert_eq!(overview.cache_stats.disabled, 1);
+    assert_eq!(overview.cache_stats.full_rechecks, 0);
+    assert!(stats.iter().all(|s| s.samples == 1));
+    assert!(stats
+        .iter()
+        .all(|s| s.code_revision.is_some() && !s.engine_versions.is_empty()));
+    let mut old = serde_json::to_value(event(&first)).unwrap();
+    for key in [
+        "environment_id",
+        "environment",
+        "cache_outcome",
+        "output_stream",
+    ] {
+        old["fields"].as_object_mut().unwrap().remove(key);
+    }
+    let decoded = serde_json::from_value::<Event>(old).unwrap();
+    assert!(decoded.valid());
+    assert!(decoded.fields.environment.is_none());
+}

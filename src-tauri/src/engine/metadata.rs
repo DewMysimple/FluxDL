@@ -57,6 +57,7 @@ pub fn media_from_json(raw: &Value, url: &str, stderr: &str) -> AppResult<MediaI
         .take(2048)
         .collect();
     Ok(MediaInfo {
+        trusted_preview_ref: None,
         url: url.into(),
         title,
         media_id: raw

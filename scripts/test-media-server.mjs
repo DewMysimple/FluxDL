@@ -15,8 +15,12 @@ export function startMediaServer() {
   }
   const content = fs.readFileSync(media);
   let unavailable = false;
+  let responseProfile = 'normal';
   const server = http.createServer((req, res) => {
     if (unavailable || req.url?.includes('/missing')) { res.writeHead(404).end('Missing test fixture'); return; }
+    const profile = responseProfile;
+    const send = () => {
+    if (res.destroyed) return;
     const slow = req.url?.includes('slow');
     const chunkSize = req.url?.includes('native-slow') ? 4096 : 16384;
     const range = /bytes=(\d+)-(\d*)/.exec(req.headers.range || '');
@@ -26,6 +30,7 @@ export function startMediaServer() {
     if (range) headers['Content-Range'] = `bytes ${start}-${end}/${content.length}`;
     res.writeHead(range ? 206 : 200, headers);
     if (req.method === 'HEAD') { res.end(); return; }
+    if (profile === 'drop') { res.write(content.subarray(start, Math.min(start + 4096, end + 1))); setTimeout(() => res.destroy(), 10); return; }
     if (!slow) { res.end(content.subarray(start, end + 1)); return; }
     const interval = setInterval(() => {
       const next = Math.min(start + chunkSize, end + 1);
@@ -34,6 +39,8 @@ export function startMediaServer() {
       if (start > end) { clearInterval(interval); res.end(); }
     }, 80);
     res.on('close', () => clearInterval(interval));
+    };
+    if (profile === 'delayed') { const timer = setTimeout(send, 250); res.on('close', () => clearTimeout(timer)); } else send();
   });
-  return new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve({ server, port: server.address().port, media, setUnavailable: value => { unavailable = value; } })));
+  return new Promise(resolve => server.listen(0, '127.0.0.1', () => resolve({ server, port: server.address().port, media, setUnavailable: value => { unavailable = value; }, setResponseProfile: value => { if (!['normal','delayed','drop'].includes(value)) throw new Error('Unknown fixture profile'); responseProfile = value; } })));
 }

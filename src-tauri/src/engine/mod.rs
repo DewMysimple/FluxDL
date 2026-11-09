@@ -4,6 +4,7 @@ mod discovery;
 mod download;
 mod metadata;
 mod progress;
+pub(crate) mod trusted_preview;
 pub use crate::diagnostics::redact_log;
 use crate::{
     errors::{AppError, AppResult, ErrorCode, ErrorPhase},

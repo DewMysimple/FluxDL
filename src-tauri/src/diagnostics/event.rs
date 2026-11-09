@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum Stage {
     Session,
+    SessionEnvironment,
     ParseUiRequest,
     ParseIpcDispatch,
     ParseValidate,
@@ -23,6 +24,12 @@ pub enum Stage {
     QueueWait,
     DownloadEngineSpawn,
     DownloadFirstProgress,
+    DownloadFirstOutput,
+    DownloadBeforeDl,
+    DownloadBeforeDlToProgress,
+    DownloadProcessExit,
+    PreviewCacheDecision,
+    EnqueueTrustedValidate,
     DownloadActive,
     DownloadPostprocess,
     DownloadTerminal,
@@ -33,6 +40,7 @@ pub enum Stage {
 impl Stage {
     pub fn label(self) -> &'static str {
         match self {
+            Self::SessionEnvironment => "本次会话构建与引擎版本",
             Self::Session => "应用会话",
             Self::ParseUiRequest => "解析到预览（前端时钟）",
             Self::ParseIpcDispatch => "解析命令分派",
@@ -50,6 +58,12 @@ impl Stage {
             Self::EnqueueToProgress => "入队到首次有效进度",
             Self::QueueWait => "串行队列等待",
             Self::DownloadEngineSpawn => "下载进程启动",
+            Self::DownloadFirstOutput => "等待首次引擎输出（非网络首字节）",
+            Self::DownloadBeforeDl => "启动至下载前标记",
+            Self::DownloadBeforeDlToProgress => "下载前标记至首次有效进度",
+            Self::DownloadProcessExit => "下载进程运行至回收",
+            Self::PreviewCacheDecision => "可信预览缓存决策",
+            Self::EnqueueTrustedValidate => "后端可信预览安全校验",
             Self::DownloadFirstProgress => "进程启动到首次有效进度",
             Self::DownloadActive => "下载阶段",
             Self::DownloadPostprocess => "后处理",
@@ -80,9 +94,33 @@ pub enum Level {
     Debug,
     Trace,
 }
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CacheOutcome {
+    Hit,
+    Missing,
+    Expired,
+    ConfigChanged,
+    SourceMismatch,
+    ModeMismatch,
+    FormatMismatch,
+    Disabled,
+    Duplicate,
+    TooLarge,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Pipe {
+    Stdout,
+    Stderr,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
 pub struct Fields {
+    pub environment_id: Option<String>,
+    pub environment: Option<super::Environment>,
+    pub cache_outcome: Option<CacheOutcome>,
+    pub output_stream: Option<Pipe>,
     pub related_trace_id: Option<String>,
     pub attempt_id: Option<String>,
     pub error_code: Option<ErrorCode>,
@@ -128,6 +166,12 @@ pub fn valid_id(value: &str) -> bool {
 impl Event {
     pub fn valid(&self) -> bool {
         self.schema_version == 1
+            && self
+                .fields
+                .environment_id
+                .as_ref()
+                .is_none_or(|id| valid_id(id))
+            && self.fields.environment.as_ref().is_none_or(|e| e.valid())
             && [
                 &self.event_id,
                 &self.session_id,

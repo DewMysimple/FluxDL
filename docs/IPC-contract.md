@@ -45,3 +45,13 @@ diagnostic_commands.rs注册get_diagnostics_health、query_diagnostic_events(fil
 日志文件Event采用snake_case schema_version=1，fields为白名单；错误保留稳定error_code和可选源操作error_kind，不包含原始stderr。普通状态IPC的session/revision与诊断session完全独立；原AppEvent、tombstone、快照原子日志flush及6秒checkpoint不变。
 
 系统目录/导出/定位只允许workspace窗口；导出目的地由Rust原生save dialog选择，无前端任意路径参数，拒绝覆盖。诊断查询两窗可用，capabilities未扩大。diagnostics-locate-task只发给workspace，diagnostics-changed是独立低频提示，不占任务revision。UI每2秒读真实诊断，历史页不自动翻动。完整schema与阶段语义见[设计](engineering/observability-design.md)。
+
+## 0.2.1 兼容扩展
+
+probe_media仍返回MediaInfo，新增可选trustedPreviewRef（不透明、短期、Rust所有）。enqueue_download仍接受原EnqueueInput.media；没有/失效引用走完整提取，前端任意格式/标题不授权。引用在任务构造前移除，不进入DownloadTask/SQLite或AppEvent。EngineInfo新增beforeDlSupported（旧JSON默认false），用于离线检测后的安全标记选择；前端类型为可选，旧字段和普通IPC session/revision不变。
+
+Event仍schema1，Fields新增可选environment_id/environment、cache_outcome/output_stream。缺字段的旧记录可读，未知字段/阶段/未来schema仍计入不可读提示。Stage新增session_environment、download_first_output、download_before_dl、download_before_dl_to_progress、download_process_exit、preview_cache_decision、enqueue_trusted_validate；download_first_progress原含义不变。
+
+Health新增build（编译revision/dirty/app_version）及elapsedSinceSessionStartMs；Overview新增cacheStats，Statistic带sessionId/environmentId/cacheOutcome/codeRevision/engineVersions，按组计算。taskId查询将其关联Trace中的入队前事件也纳入，仍受统一时间/来源/等级/数量/cursor与20,000窗口约束。导出附加所选记录对应的会话环境，不附加其他业务任务/数据库；旧环境unknown，不回填。
+
+configure_latency_test_mode(mode)只允许workspace，debug接受full_recheck/trusted_preview_cache，两条路径都保留安全验证；Release明确拒绝，不暴露产品设置或任意参数。其余目录/保存/定位权限和capabilities完全不变。

@@ -1,6 +1,7 @@
 #[cfg(test)]
 use crate::events::AppEvent;
 mod files;
+use crate::engine::trusted_preview::{Fingerprint, Selection, TrustedPreviews};
 use crate::{
     diagnostics::{Diagnostics, Stage, Status, Trace},
     engine::{self, DownloadEvent},
@@ -163,6 +164,9 @@ struct Control {
 
 pub struct Manager {
     pub diagnostics: Arc<Diagnostics>,
+    previews: std::sync::Mutex<TrustedPreviews>,
+    preview_generation: std::sync::atomic::AtomicU64,
+    preview_cache_enabled: AtomicBool,
     self_ref: OnceLock<Weak<Manager>>,
     inner: Mutex<Inner>,
     writer: PersistenceWriter,
@@ -213,6 +217,9 @@ impl Manager {
         }
         let manager = Arc::new(Self {
             diagnostics,
+            previews: std::sync::Mutex::new(TrustedPreviews::default()),
+            preview_generation: std::sync::atomic::AtomicU64::new(0),
+            preview_cache_enabled: AtomicBool::new(true),
             self_ref: OnceLock::new(),
             inner: Mutex::new(Inner {
                 settings: loaded.settings,
@@ -668,6 +675,9 @@ impl Manager {
             return inner.diagnostics();
         }
         let previous = inner.diagnostics();
+        if inner.engines != diagnostics {
+            self.preview_generation.fetch_add(1, Ordering::SeqCst);
+        }
         inner.engines = diagnostics.clone();
         self.diagnostics.set_engine_versions(&diagnostics);
         inner.capture_diagnostics(previous);
@@ -682,15 +692,47 @@ impl Manager {
     pub async fn probe_with_trace(&self, url: &str, trace: Trace) -> AppResult<MediaInfo> {
         trace.begin(Stage::ParseTotal);
         trace.begin(Stage::ParseIpcDispatch);
-        let (settings, engines) = {
+        let (settings, engines, generation) = {
             let inner = self.inner.lock().await;
-            (inner.settings.clone(), inner.engines.clone())
+            (
+                inner.settings.clone(),
+                inner.engines.clone(),
+                self.preview_generation.load(Ordering::SeqCst),
+            )
         };
         trace.finish(Stage::ParseIpcDispatch, Status::Ok, None);
-        let result = engine::probe_traced(&settings, &engines, url, Some(&trace)).await;
+        let fingerprint = Fingerprint::read(&settings, &engines).await;
+        let mut result = engine::probe_traced(&settings, &engines, url, Some(&trace)).await;
+        if let (Ok(media), Some(fingerprint)) = (&mut result, fingerprint) {
+            if generation == self.preview_generation.load(Ordering::SeqCst) {
+                media.trusted_preview_ref = self
+                    .previews
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .store(
+                        media,
+                        settings.default_mode.clone(),
+                        generation,
+                        fingerprint,
+                    );
+            }
+        }
+        if let Ok(media) = &result {
+            if let Some(reference) = &media.trusted_preview_ref {
+                self.previews
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .link_parse(reference, trace.id());
+            }
+        }
         trace.result(Stage::ParseTotal, &result);
         self.diagnostics.notify();
         result
+    }
+    /// A/B policy changes are only compiled for debug/test, never a release safety switch.
+    #[cfg(debug_assertions)]
+    pub fn set_preview_cache_enabled(&self, enabled: bool) {
+        self.preview_cache_enabled.store(enabled, Ordering::SeqCst);
     }
     pub async fn enqueue(&self, input: EnqueueInput) -> AppResult<DownloadTask> {
         let trace = self.diagnostics.trace(None, None, None);
@@ -722,15 +764,68 @@ impl Manager {
         }
         validate_options(&input.mode, &input.quality)?;
         trace.finish(Stage::EnqueueValidate, Status::Ok, None);
-        // Metadata sent over IPC is not trusted. Resolve it again with the configured engine.
-        trace.begin(Stage::EnqueueMetadataRecheck);
-        let (settings, engines) = {
-            let inner = self.inner.lock().await;
-            (inner.settings.clone(), inner.engines.clone())
+        let reference = input.media.trusted_preview_ref.clone();
+        let gate = self
+            .previews
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .gate(reference.as_deref());
+        let _preview_admission = match gate {
+            Some(gate) => Some(gate.lock_owned().await),
+            None => None,
         };
-        let result = engine::probe(&settings, &engines, &input.media.url).await;
-        trace.result(Stage::EnqueueMetadataRecheck, &result);
-        let media = result?;
+        let (settings, engines, generation) = {
+            let inner = self.inner.lock().await;
+            (
+                inner.settings.clone(),
+                inner.engines.clone(),
+                self.preview_generation.load(Ordering::SeqCst),
+            )
+        };
+        let url = engine::validate_url(&input.media.url)?;
+        let selection = Selection {
+            mode: input.mode.clone(),
+            quality: input.quality.clone(),
+            format: input.format_id.clone(),
+            directory: input
+                .output_dir
+                .clone()
+                .unwrap_or_else(|| settings.download_dir.clone()),
+        };
+        trace.begin(Stage::EnqueueTrustedValidate);
+        let fingerprint = Fingerprint::read(&settings, &engines).await;
+        let lookup = self
+            .previews
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .lookup(
+                reference.as_deref(),
+                &url,
+                &selection,
+                generation,
+                fingerprint.as_ref(),
+                self.preview_cache_enabled.load(Ordering::SeqCst),
+            );
+        if let Some(parse) = &lookup.parse_trace {
+            trace.bind_related(parse);
+        }
+        trace.cache_outcome(lookup.outcome);
+        trace.finish(Stage::EnqueueTrustedValidate, Status::Ok, None);
+        if let Some(id) = lookup.duplicate {
+            trace.missing(Stage::EnqueueToProgress, Status::NotApplicable);
+            return self.task(&id).await;
+        }
+        let reused = lookup.media.is_some();
+        let mut media = if let Some(media) = lookup.media {
+            media
+        } else {
+            // Neither the frontend DTO nor its reference authorizes a format.
+            trace.begin(Stage::EnqueueMetadataRecheck);
+            let result = engine::probe(&settings, &engines, &url).await;
+            trace.result(Stage::EnqueueMetadataRecheck, &result);
+            result?
+        };
+        media.trusted_preview_ref = None;
         if media.is_playlist {
             return Err(invalid_error(
                 "当前 MVP 不执行整列表批量下载，请提供单个视频的链接。",
@@ -779,6 +874,11 @@ impl Manager {
             let _gate = self.critical.lock().await;
             let seq = {
                 let mut inner = self.inner.lock().await;
+                if generation != self.preview_generation.load(Ordering::SeqCst) {
+                    return Err(invalid_error(
+                        "引擎配置在校验期间已变化，请重新解析后加入队列。",
+                    ));
+                }
                 engine::build_download_args(&task, &inner.settings, &inner.engines)?;
                 if self.shutting_down.load(Ordering::SeqCst) {
                     return Err(closing_error("应用正在退出，请稍后重试。"));
@@ -790,6 +890,14 @@ impl Manager {
             self.save_candidate(task.clone(), seq, false, None).await?;
             task_trace.finish(Stage::EnqueuePersist, Status::Ok, None);
             task_trace.begin(Stage::QueueWait);
+        }
+        if reused {
+            if let Some(reference) = reference {
+                self.previews
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .accept(&reference, selection, task.id.clone());
+            }
         }
         self.emit().await;
         self.wake.notify_one();
@@ -1012,6 +1120,12 @@ impl Manager {
             .await?;
             let mut inner = self.inner.lock().await;
             if inner.settings != settings {
+                if inner.settings.engine_path != settings.engine_path
+                    || inner.settings.ffmpeg_path != settings.ffmpeg_path
+                    || inner.settings.default_mode != settings.default_mode
+                {
+                    self.preview_generation.fetch_add(1, Ordering::SeqCst);
+                }
                 inner.settings = settings.clone();
                 inner.events.capture(AppChange::SettingsUpdated {
                     settings: settings.clone(),
@@ -1200,6 +1314,7 @@ impl Manager {
             .await?;
         if let Some(trace) = self.diagnostics.task_trace(&task.id) {
             trace.finish(Stage::QueueWait, Status::Ok, None);
+            trace.refresh_environment();
             trace.begin(Stage::DownloadTotal);
         }
         let mut inner = self.inner.lock().await;
@@ -1288,6 +1403,14 @@ impl Manager {
                     };
                     trace.finish(Stage::DownloadTerminal, status, None);
                     trace.finish(Stage::DownloadTotal, status, None);
+                    for stage in [
+                        Stage::DownloadFirstOutput,
+                        Stage::DownloadBeforeDl,
+                        Stage::DownloadBeforeDlToProgress,
+                        Stage::DownloadProcessExit,
+                    ] {
+                        trace.missing(stage, Status::Unobserved);
+                    }
                     trace.missing(Stage::DownloadFirstProgress, Status::Unobserved);
                     trace.missing(Stage::DownloadEngineSpawn, Status::Unobserved);
                     trace.missing(Stage::DownloadActive, Status::Unobserved);
@@ -1460,6 +1583,23 @@ impl Manager {
         if !inner.accepts_progress(id, attempt) {
             return Ok(());
         }
+        if let DownloadEvent::BeforeDownload {
+            stream,
+            sequence,
+            observed_at,
+        } = &event
+        {
+            if *stream != crate::process::OutputStream::Stdout {
+                return Ok(());
+            }
+            if tracker.admit_line(*stream, *sequence) {
+                if let Some(trace) = self.diagnostics.task_trace(id) {
+                    trace.finish_at(Stage::DownloadBeforeDl, Status::Ok, None, *observed_at);
+                    trace.begin_at(Stage::DownloadBeforeDlToProgress, *observed_at);
+                }
+            }
+            return Ok(());
+        }
         let progress_kind = match &event {
             DownloadEvent::Progress { fact, .. } => match &fact.event {
                 engine::ProgressEvent::Download { .. } => 1,
@@ -1492,6 +1632,9 @@ impl Manager {
                     appended = Some(push_log(task, line));
                     RuntimeChange::Progress
                 }
+                DownloadEvent::BeforeDownload { .. } => {
+                    unreachable!("handled after attempt admission")
+                }
                 DownloadEvent::Diagnostic(error) => {
                     appended = Some(push_log(task, error.safe_text()));
                     RuntimeChange::Progress
@@ -1510,6 +1653,7 @@ impl Manager {
                 if let Some(trace) = self.diagnostics.task_trace(id) {
                     if progress_kind == 1 {
                         trace.finish(Stage::DownloadFirstProgress, Status::Ok, None);
+                        trace.finish(Stage::DownloadBeforeDlToProgress, Status::Ok, None);
                         trace.finish(Stage::EnqueueToProgress, Status::Ok, None);
                         trace.begin(Stage::DownloadActive);
                     } else if progress_kind == 2 {
@@ -1665,6 +1809,7 @@ mod tests {
         DownloadTask {
             id: id.into(),
             media: MediaInfo {
+                trusted_preview_ref: None,
                 url: "https://example.com/fixture.mp4".into(),
                 title: "Fixture only".into(),
                 media_id: "fixture".into(),
@@ -1709,6 +1854,9 @@ mod tests {
         let mut engines = EngineDiagnostics::default();
         engines.ytdlp.available = true;
         let manager = Arc::new(Manager {
+            previews: std::sync::Mutex::new(TrustedPreviews::default()),
+            preview_generation: std::sync::atomic::AtomicU64::new(0),
+            preview_cache_enabled: AtomicBool::new(true),
             diagnostics: Diagnostics::disabled(),
             self_ref: OnceLock::new(),
             inner: Mutex::new(Inner {
@@ -2705,6 +2853,111 @@ mod tests {
         std::fs::remove_dir_all(directory).unwrap();
     }
     #[tokio::test]
+    async fn download_markers_reject_old_attempts_wrong_pipes_and_repeated_callbacks() {
+        use crate::process::OutputStream;
+        let directory =
+            std::env::temp_dir().join(format!("fluxdl-markers-{}", uuid::Uuid::new_v4()));
+        let id = uuid::Uuid::new_v4().to_string();
+        let manager = isolated_manager(
+            &directory,
+            vec![fixture_task(&id, TaskStatus::Resolving, &directory)],
+        )
+        .await;
+        manager.inner.lock().await.attempts.insert(id.clone(), 2);
+        let trace = manager.diagnostics.trace(None, None, None).with_task(&id);
+        trace.begin(Stage::DownloadBeforeDl);
+        trace.begin(Stage::DownloadFirstProgress);
+        manager.diagnostics.attach(&id, trace.clone());
+        let mut tracker = RuntimeTracker::default();
+        for (attempt, stream) in [(1, OutputStream::Stdout), (2, OutputStream::Stderr)] {
+            manager
+                .apply_download_event(
+                    &id,
+                    attempt,
+                    &mut tracker,
+                    DownloadEvent::BeforeDownload {
+                        stream,
+                        sequence: 999,
+                        observed_at: Instant::now(),
+                    },
+                )
+                .await
+                .unwrap();
+        }
+        assert!(!manager
+            .diagnostics
+            .query(&crate::diagnostics::Filter {
+                trace_id: Some(trace.id().into()),
+                ..Default::default()
+            })
+            .unwrap()
+            .events
+            .iter()
+            .any(|e| e.phase == Stage::DownloadBeforeDl && e.status == Status::Ok));
+        for _ in 0..2 {
+            manager
+                .apply_download_event(
+                    &id,
+                    2,
+                    &mut tracker,
+                    DownloadEvent::BeforeDownload {
+                        stream: OutputStream::Stdout,
+                        sequence: 1,
+                        observed_at: Instant::now(),
+                    },
+                )
+                .await
+                .unwrap();
+        }
+        manager
+            .apply_download_event(
+                &id,
+                2,
+                &mut tracker,
+                DownloadEvent::Progress {
+                    stream: OutputStream::Stdout,
+                    sequence: 2,
+                    fact: engine::ParsedProgress {
+                        event: engine::ProgressEvent::Download {
+                            downloaded_bytes: 1,
+                            total_bytes: Some(10),
+                            speed: None,
+                            eta: None,
+                            progress: Some(10.),
+                        },
+                        stream_id: None,
+                        finished: false,
+                    },
+                },
+            )
+            .await
+            .unwrap();
+        let events = manager
+            .diagnostics
+            .query(&crate::diagnostics::Filter {
+                trace_id: Some(trace.id().into()),
+                ..Default::default()
+            })
+            .unwrap()
+            .events;
+        for phase in [
+            Stage::DownloadBeforeDl,
+            Stage::DownloadBeforeDlToProgress,
+            Stage::DownloadFirstProgress,
+        ] {
+            assert_eq!(
+                events
+                    .iter()
+                    .filter(|e| e.phase == phase && e.status == Status::Ok)
+                    .count(),
+                1
+            );
+        }
+        manager.writer.close().await.unwrap();
+        drop(manager);
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+    #[tokio::test]
     async fn typed_runtime_new_stream_resets_with_full_upsert_and_rejects_old_attempts_and_exits() {
         use crate::{
             engine::{ParsedProgress, ProgressEvent},
@@ -3224,6 +3477,7 @@ mod tests {
                 .unwrap();
         async fn add(manager: &Manager, name: &str) -> DownloadTask {
             let media = MediaInfo {
+                trusted_preview_ref: None,
                 url: format!("https://fixture.invalid/{name}"),
                 title: "untrusted frontend placeholder".into(),
                 media_id: "ignored".into(),

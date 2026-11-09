@@ -92,6 +92,7 @@ fn task(index: usize, directory: &Path, status: TaskStatus) -> DownloadTask {
     DownloadTask {
         id: format!("bench-{index:06}"),
         media: MediaInfo {
+            trusted_preview_ref: None,
             url: format!("https://example.invalid/media/{index}"),
             title: format!("工程性能基准 · 授权测试素材 {index:06}"),
             media_id: index.to_string(),

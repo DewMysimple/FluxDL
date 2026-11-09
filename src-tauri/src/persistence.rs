@@ -19,6 +19,7 @@ mod tests {
         DownloadTask {
             id: "test".into(),
             media: MediaInfo {
+                trusted_preview_ref: None,
                 url: "https://example.com/video".into(),
                 title: "test".into(),
                 media_id: "test".into(),

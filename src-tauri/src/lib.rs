@@ -108,6 +108,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             diagnostic_commands::get_diagnostics_health,
+            diagnostic_commands::configure_latency_test_mode,
             diagnostic_commands::query_diagnostic_events,
             diagnostic_commands::get_diagnostics_overview,
             diagnostic_commands::record_frontend_diagnostic,

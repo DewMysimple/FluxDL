@@ -1,4 +1,11 @@
 export type Stage =
+  | "session_environment"
+  | "download_first_output"
+  | "download_before_dl"
+  | "download_before_dl_to_progress"
+  | "download_process_exit"
+  | "preview_cache_decision"
+  | "enqueue_trusted_validate"
   | "session"
   | "parse_ui_request"
   | "parse_ipc_dispatch"
@@ -48,6 +55,17 @@ export interface DiagnosticEvent {
   status: DiagnosticStatus;
   duration_ms: number | null;
   fields: {
+    cache_outcome?: string | null;
+    output_stream?: "stdout" | "stderr" | null;
+    environment_id?: string | null;
+    environment?: {
+      build: {
+        revision: string | null;
+        dirty: boolean | null;
+        app_version: string;
+      };
+      engines: Record<string, string>;
+    } | null;
     related_trace_id: string | null;
     attempt_id: string | null;
     error_code: string | null;
@@ -75,6 +93,11 @@ export interface DiagnosticPage {
   truncated: boolean;
 }
 export interface Statistic {
+  cacheOutcome?: string | null;
+  sessionId?: string;
+  environmentId?: string | null;
+  codeRevision?: string | null;
+  engineVersions?: Record<string, string>;
   phase: Stage;
   label: string;
   samples: number;
@@ -84,6 +107,15 @@ export interface Statistic {
   slowestTraceId: string;
 }
 export interface Overview {
+  cacheStats?: {
+    hit: number;
+    missing: number;
+    expired: number;
+    invalidated: number;
+    disabled: number;
+    duplicate: number;
+    fullRechecks: number;
+  };
   slowTraces: DiagnosticEvent[];
   sessionId: string;
   parses: number;
@@ -98,6 +130,12 @@ export interface Overview {
   toUtc: string | null;
 }
 export interface Health {
+  build?: {
+    revision: string | null;
+    dirty: boolean | null;
+    app_version: string;
+  };
+  elapsedSinceSessionStartMs?: number;
   mode: string;
   sessionId: string;
   directory: string | null;
@@ -109,6 +147,13 @@ export interface Health {
 }
 export const stageLabels: Record<Stage, string> = {
   session: "应用会话",
+  session_environment: "会话构建与引擎版本",
+  download_first_output: "等待首次引擎输出（非网络首字节）",
+  download_before_dl: "启动至下载前标记",
+  download_before_dl_to_progress: "下载前标记至首次有效进度",
+  download_process_exit: "进程运行至回收",
+  preview_cache_decision: "可信预览缓存决策",
+  enqueue_trusted_validate: "后端可信预览安全校验",
   parse_ui_request: "解析响应 · 前端时钟",
   parse_ipc_dispatch: "解析命令分派",
   parse_validate: "解析参数校验",
@@ -142,3 +187,6 @@ export const statusLabels: Record<DiagnosticStatus, string> = {
   notapplicable: "不适用",
   interrupted: "中断",
 };
+
+export const phaseLabel = (phase: string) =>
+  stageLabels[phase as Stage] ?? "未知阶段（无有效语义记录）";

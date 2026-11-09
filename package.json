@@ -1,7 +1,7 @@
 {
   "name": "fluxdl",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "description": "A local-first yt-dlp desktop client with a quiet Midnight Glass interface",
   "license": "MIT",

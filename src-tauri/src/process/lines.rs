@@ -15,6 +15,7 @@ pub struct OutputLine {
     pub sequence: u64,
     pub text: String,
     pub truncated: bool,
+    pub observed_at: std::time::Instant,
 }
 #[derive(Debug)]
 pub enum ProcessEvent {
@@ -22,20 +23,38 @@ pub enum ProcessEvent {
     ReadFault(AppError),
 }
 
+#[cfg(test)]
 pub(super) async fn read_lines<R: AsyncRead + Unpin>(
+    reader: R,
+    stream: OutputStream,
+    sender: mpsc::Sender<ProcessEvent>,
+    phase: ErrorPhase,
+) {
+    read_lines_traced(reader, stream, sender, phase, None).await;
+}
+pub(super) async fn read_lines_traced<R: AsyncRead + Unpin>(
     mut reader: R,
     stream: OutputStream,
     sender: mpsc::Sender<ProcessEvent>,
     phase: ErrorPhase,
+    trace: Option<crate::diagnostics::Trace>,
 ) {
     let mut chunk = [0u8; 4096];
     let mut line = Vec::with_capacity(8192);
     let mut truncated = false;
     let mut sequence = 0u64;
+    let mut first_output = false;
     loop {
         match reader.read(&mut chunk).await {
             Ok(0) => break,
             Ok(count) => {
+                if let Some(trace) = trace.as_ref().filter(|_| !first_output) {
+                    trace.first_output(match stream {
+                        OutputStream::Stdout => crate::diagnostics::Pipe::Stdout,
+                        OutputStream::Stderr => crate::diagnostics::Pipe::Stderr,
+                    });
+                }
+                first_output = true;
                 for byte in &chunk[..count] {
                     if matches!(*byte, b'\n' | b'\r') {
                         if !line.is_empty() || truncated {
@@ -46,6 +65,7 @@ pub(super) async fn read_lines<R: AsyncRead + Unpin>(
                                     sequence,
                                     text: String::from_utf8_lossy(&line).into_owned(),
                                     truncated,
+                                    observed_at: std::time::Instant::now(),
                                 }))
                                 .await
                                 .is_err()
@@ -80,6 +100,7 @@ pub(super) async fn read_lines<R: AsyncRead + Unpin>(
                 sequence: sequence.saturating_add(1),
                 text: String::from_utf8_lossy(&line).into_owned(),
                 truncated,
+                observed_at: std::time::Instant::now(),
             }))
             .await;
     }
@@ -88,6 +109,47 @@ pub(super) async fn read_lines<R: AsyncRead + Unpin>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn first_actual_bytes_are_observed_before_a_line_and_only_once() {
+        use crate::diagnostics::{Diagnostics, Filter, Pipe, Stage, Status};
+        use tokio::io::AsyncWriteExt;
+        let service = Diagnostics::disabled();
+        let trace = service.trace(None, None, None);
+        trace.begin(Stage::DownloadFirstOutput);
+        let (reader, mut writer) = tokio::io::duplex(64);
+        let (sender, mut receiver) = mpsc::channel(4);
+        let owner = tokio::spawn(read_lines_traced(
+            reader,
+            OutputStream::Stderr,
+            sender,
+            ErrorPhase::Download,
+            Some(trace.clone()),
+        ));
+        writer.write_all(&[0xff, b'x']).await.unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        let events = service.query(&Filter::default()).unwrap().events;
+        assert!(events.iter().any(|e| e.phase == Stage::DownloadFirstOutput
+            && e.status == Status::Ok
+            && e.fields.output_stream == Some(Pipe::Stderr)));
+        assert!(receiver.try_recv().is_err());
+        writer.write_all(b"\nsecond\n").await.unwrap();
+        drop(writer);
+        owner.await.unwrap();
+        let Some(ProcessEvent::Line(line)) = receiver.recv().await else {
+            panic!("decoded line")
+        };
+        assert!(line.text.contains('\u{fffd}'));
+        assert_eq!(
+            service
+                .query(&Filter::default())
+                .unwrap()
+                .events
+                .iter()
+                .filter(|e| e.phase == Stage::DownloadFirstOutput && e.status == Status::Ok)
+                .count(),
+            1
+        );
+    }
     #[tokio::test]
     async fn drains_oversized_lines_without_silently_losing_truncation_or_stream_order() {
         let mut input = vec![b'x'; 20000];

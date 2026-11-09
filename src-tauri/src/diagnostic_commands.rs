@@ -7,6 +7,29 @@ use std::sync::Arc;
 use tauri::{Emitter, Manager as _, State};
 use tauri_plugin_dialog::DialogExt;
 type Backend<'a> = State<'a, Arc<Manager>>;
+#[tauri::command]
+pub fn configure_latency_test_mode(
+    window: tauri::WebviewWindow,
+    backend: Backend<'_>,
+    mode: String,
+) -> Result<(), String> {
+    workspace(&window)?;
+    #[cfg(debug_assertions)]
+    {
+        let enabled = match mode.as_str() {
+            "full_recheck" => false,
+            "trusted_preview_cache" => true,
+            _ => return Err("未知测试策略。".into()),
+        };
+        backend.set_preview_cache_enabled(enabled);
+        Ok(())
+    }
+    #[cfg(not(debug_assertions))]
+    {
+        let _ = (backend, mode);
+        Err("正式版不提供开发测试策略切换。".into())
+    }
+}
 fn joined(_: impl std::fmt::Debug) -> String {
     "诊断操作未完成；下载不受影响。".into()
 }

@@ -16,6 +16,7 @@ import { useApp } from "../../stores/app";
 import { Button, MediaImage, Status, Progress } from "../../components/ui";
 import { useAction } from "../../hooks/useAction";
 import { qualityName } from "../../lib/presets";
+import { taskDiagnosticSummary } from "../diagnostics/diagnostics-api";
 import { TaskDiagnosticStatus } from "../diagnostics/TaskDiagnosticStatus";
 
 export function TaskDetails({ taskId }: { taskId: string }) {
@@ -58,7 +59,11 @@ export function TaskDetails({ taskId }: { taskId: string }) {
       <span className="eyebrow">{task.media.source}</span>
       <h2>{task.media.title}</h2>
       <Status task={task} />
-      <TaskDiagnosticStatus taskId={task.id} active={isActive(task.status)} />
+      <TaskDiagnosticStatus
+        taskId={task.id}
+        active={isActive(task.status)}
+        status={task.status}
+      />
       <Progress task={task} />
       <dl className="details-list">
         <div>
@@ -111,7 +116,7 @@ export function TaskDetails({ taskId }: { taskId: string }) {
           onClick={() => void run(() => api.locateDiagnostics(task.id))}
         >
           <Activity size={15} />
-          查看任务诊断
+          性能诊断
         </Button>
         {task.status === "completed" && (
           <>
@@ -156,6 +161,20 @@ export function TaskDetails({ taskId }: { taskId: string }) {
           {copied ? "已复制" : "复制来源链接"}
         </Button>
       </div>
+      <Button
+        disabled={busy || !isDesktop}
+        onClick={() =>
+          void run(async () => {
+            await navigator.clipboard.writeText(
+              await taskDiagnosticSummary(task.id),
+            );
+            notify("已复制本任务诊断摘要");
+          })
+        }
+      >
+        <Copy size={14} />
+        复制本任务诊断摘要
+      </Button>
       <details className="logs">
         <summary>
           <Terminal size={15} />

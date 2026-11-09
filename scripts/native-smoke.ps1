@@ -290,7 +290,23 @@ function TrayCommand([string]$Caption, [bool]$ExpectExit = $false) {
         [FluxNativeSmoke]::RequireOwner($script:menuHandle, $TargetProcessId)
         $menu = [System.Windows.Automation.AutomationElement]::FromHandle($script:menuHandle)
         $item = ExactUi $menu $Caption ([System.Windows.Automation.ControlType]::MenuItem)
-        InvokeUi $item $ExpectExit
+        $clicked = $false
+        if ($item -and $item.Current.IsEnabled) {
+            $box = $item.Current.BoundingRectangle
+            if (-not $box.IsEmpty -and $box.Width -ge 1 -and $box.Height -ge 1) {
+                $x = [int]($box.Left + $box.Width / 2); $y = [int]($box.Top + $box.Height / 2)
+                $hit = [System.Windows.Automation.AutomationElement]::FromPoint((New-Object System.Windows.Point($x, $y)))
+                if ($hit.Current.Name -eq $Caption -and $hit.Current.ProcessId -eq $TargetProcessId) {
+                    AssertTarget
+                    [FluxNativeSmoke]::RequireOwner($script:menuHandle, $TargetProcessId)
+                    [FluxNativeSmoke]::MouseClick($x, $y, $false)
+                    $clicked = $true
+                }
+            }
+        }
+        if (-not $report.Contains('menuActions')) { $report['menuActions'] = New-Object 'System.Collections.Generic.List[object]' }
+        $report.menuActions.Add([ordered]@{ caption = $Caption; processId = $TargetProcessId; route = $(if($clicked){'exactOwnedMenuPointerHit'}else{'UIAutomationInvokePattern'}) })
+        if (-not $clicked) { InvokeUi $item $ExpectExit }
     } catch {
         if ($script:menuHandle -ne [IntPtr]::Zero -and [FluxNativeSmoke]::IsWindowVisible($script:menuHandle)) {
             try {

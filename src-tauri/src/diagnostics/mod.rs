@@ -1,5 +1,7 @@
 //! One local, typed source for diagnostics. No media data or raw process output.
+mod environment;
 mod event;
+pub use environment::{BuildIdentity, Environment};
 mod export;
 mod redact;
 mod report;
@@ -40,6 +42,7 @@ impl Default for Policy {
     }
 }
 struct Shared {
+    environment: Mutex<(String, Environment)>,
     versions: Mutex<std::collections::BTreeMap<String, String>>,
     #[cfg(test)]
     paused: AtomicBool,
@@ -69,12 +72,14 @@ pub struct Diagnostics {
 pub struct Trace {
     service: Weak<Diagnostics>,
     id: String,
-    related: Option<String>,
+    related: Arc<Mutex<Option<String>>>,
     task: Option<String>,
     attempt: Option<String>,
     state: Arc<Mutex<TraceState>>,
     failure: Arc<Mutex<Option<FailureClassification>>>,
+    context: Arc<Mutex<TraceContext>>,
 }
+type TraceContext = (Option<CacheOutcome>, Option<Pipe>, String);
 type FailureClassification = (crate::errors::ErrorCode, Option<crate::errors::ErrorKind>);
 #[derive(Default)]
 struct TraceState {
@@ -101,6 +106,8 @@ pub struct Health {
     pub critical_dropped: u64,
     pub generation: u64,
     pub level: &'static str,
+    pub build: BuildIdentity,
+    pub elapsed_since_session_start_ms: f64,
 }
 #[derive(Clone)]
 pub struct ReadResult {
@@ -154,6 +161,13 @@ impl Diagnostics {
         let (high, high_rx) = mpsc::sync_channel(256);
         let (control, controls) = mpsc::channel();
         let shared = Arc::new(Shared {
+            environment: Mutex::new((
+                uuid::Uuid::new_v4().to_string(),
+                Environment {
+                    build: BuildIdentity::compiled(),
+                    engines: Default::default(),
+                },
+            )),
             versions: Mutex::new(std::collections::BTreeMap::new()),
             #[cfg(test)]
             paused: AtomicBool::new(false),
@@ -199,6 +213,9 @@ impl Diagnostics {
         {
             shared.warning.store(true, Ordering::Relaxed);
         }
+        service
+            .trace(None, None, None)
+            .missing(Stage::SessionEnvironment, Status::Ok);
         let t = service.trace(None, None, None);
         t.begin(Stage::Session);
         t.finish(Stage::Session, Status::Ok, None);
@@ -216,11 +233,23 @@ impl Diagnostics {
                 .filter(|id| valid_id(id))
                 .map(str::to_owned)
                 .unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
-            related: related.filter(|id| valid_id(id)).map(str::to_owned),
+            related: Arc::new(Mutex::new(
+                related.filter(|id| valid_id(id)).map(str::to_owned),
+            )),
             task: task.filter(|id| valid_id(id)).map(str::to_owned),
             attempt: task.map(|_| uuid::Uuid::new_v4().to_string()),
             state: Arc::new(Mutex::new(TraceState::default())),
             failure: Arc::new(Mutex::new(None)),
+            context: Arc::new(Mutex::new((
+                None,
+                None,
+                self.shared
+                    .environment
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .0
+                    .clone(),
+            ))),
         }
     }
     pub fn attach(&self, task: &str, trace: Trace) {
@@ -241,7 +270,7 @@ impl Diagnostics {
             .get(task)
             .cloned()
     }
-    pub fn set_engine_versions(&self, engines: &crate::models::EngineDiagnostics) {
+    pub fn set_engine_versions(self: &Arc<Self>, engines: &crate::models::EngineDiagnostics) {
         let versions = export::safe_versions(&[
             (
                 "yt-dlp".into(),
@@ -262,7 +291,21 @@ impl Diagnostics {
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         if *current != versions {
-            *current = versions;
+            *current = versions.clone();
+            *self
+                .shared
+                .environment
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()) = (
+                uuid::Uuid::new_v4().to_string(),
+                Environment {
+                    build: BuildIdentity::compiled(),
+                    engines: versions,
+                },
+            );
+            drop(current);
+            self.trace(None, None, None)
+                .missing(Stage::SessionEnvironment, Status::Ok);
             self.shared.generation.fetch_add(1, Ordering::Relaxed);
         }
     }
@@ -338,6 +381,9 @@ impl Diagnostics {
             event.task_id.as_deref(),
         );
         trace.attempt = event.fields.attempt_id;
+        if let Some(id) = event.fields.environment_id {
+            trace.context.lock().unwrap_or_else(|e| e.into_inner()).2 = id;
+        }
         trace.frontend(stage, duration_ms, success);
         Ok(())
     }
@@ -351,6 +397,8 @@ impl Diagnostics {
             critical_dropped: self.shared.critical_dropped.load(Ordering::Relaxed),
             generation: self.shared.generation.load(Ordering::Relaxed),
             level: "info / warn / error（固定白名单阶段）",
+            build: BuildIdentity::compiled(),
+            elapsed_since_session_start_ms: self.start.elapsed().as_secs_f64() * 1000.0,
         }
     }
     fn emit(&self, event: Event) {
@@ -450,11 +498,12 @@ impl Diagnostics {
     pub fn query(&self, filter: &Filter) -> Result<Page, String> {
         filter.validate()?;
         let read = self.read_snapshot();
+        let scope = ScopedFilter::new(filter, &read.events);
         let events: Vec<_> = read
             .events
             .iter()
             .rev()
-            .filter(|e| filter.matches(e))
+            .filter(|e| scope.matches(e))
             .collect();
         let total = events.len();
         let limit = if filter.limit == 0 { 100 } else { filter.limit };
@@ -476,15 +525,17 @@ impl Diagnostics {
     pub fn overview(&self, filter: &Filter) -> Result<Overview, String> {
         filter.validate()?;
         let read = self.read_snapshot();
-        Ok(report::overview(
+        let scope = ScopedFilter::new(filter, &read.events);
+        Ok(report::overview_with_context(
             read.events
                 .iter()
-                .filter(|e| filter.matches(e))
+                .filter(|e| scope.matches(e))
                 .cloned()
                 .collect(),
             &self.session,
             read.unreadable,
             read.truncated,
+            &read.events,
         ))
     }
     pub fn directory(&self) -> Result<PathBuf, String> {
@@ -501,11 +552,32 @@ impl Diagnostics {
         // Explicit export always re-decodes current files; it never trusts a hit.
         *self.cache.lock().unwrap_or_else(|e| e.into_inner()) = None;
         let read = self.read();
-        let events: Vec<_> = read
+        let scope = ScopedFilter::new(filter, &read.events);
+        let mut events: Vec<_> = read
             .events
-            .into_iter()
-            .filter(|e| filter.matches(e))
+            .iter()
+            .filter(|e| scope.matches(e))
+            .cloned()
             .collect();
+        let environments: HashSet<_> = events
+            .iter()
+            .filter_map(|e| e.fields.environment_id.clone())
+            .collect();
+        let ids: HashSet<_> = events.iter().map(|e| e.event_id.clone()).collect();
+        events.extend(
+            read.events
+                .iter()
+                .filter(|e| {
+                    e.fields.environment.is_some()
+                        && e.fields
+                            .environment_id
+                            .as_ref()
+                            .is_some_and(|id| environments.contains(id))
+                        && !ids.contains(&e.event_id)
+                })
+                .cloned(),
+        );
+        sort_events(&mut events);
         export::bundle(
             destination,
             &events,
@@ -569,16 +641,51 @@ impl Trace {
         t.attempt = Some(uuid::Uuid::new_v4().to_string());
         t
     }
+    pub fn bind_related(&self, id: &str) {
+        if valid_id(id) {
+            *self.related.lock().unwrap_or_else(|e| e.into_inner()) = Some(id.to_owned());
+        }
+    }
+    pub fn refresh_environment(&self) {
+        if let Some(service) = self.service.upgrade() {
+            self.context.lock().unwrap_or_else(|e| e.into_inner()).2 = service
+                .shared
+                .environment
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .0
+                .clone();
+        }
+    }
+    pub fn first_output(&self, pipe: Pipe) {
+        let mut context = self.context.lock().unwrap_or_else(|e| e.into_inner());
+        if context.1.is_some() {
+            return;
+        }
+        context.1 = Some(pipe);
+        drop(context);
+        self.finish(Stage::DownloadFirstOutput, Status::Ok, None);
+    }
+    pub fn cache_outcome(&self, outcome: CacheOutcome) {
+        self.context.lock().unwrap_or_else(|e| e.into_inner()).0 = Some(outcome);
+        self.missing(Stage::PreviewCacheDecision, Status::Ok);
+    }
     pub fn begin(&self, stage: Stage) {
+        self.begin_at(stage, Instant::now());
+    }
+    pub fn begin_at(&self, stage: Stage, at: Instant) {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         if state.done.contains(&stage) || state.open.contains_key(&stage) {
             return;
         }
         let span = uuid::Uuid::new_v4().to_string();
-        state.open.insert(stage, (Instant::now(), span.clone()));
+        state.open.insert(stage, (at, span.clone()));
         self.record(stage, Status::Started, None, None, span, Source::Rust);
     }
     pub fn finish(&self, stage: Stage, status: Status, error: Option<&AppError>) {
+        self.finish_at(stage, status, error, Instant::now());
+    }
+    pub fn finish_at(&self, stage: Stage, status: Status, error: Option<&AppError>, at: Instant) {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         if state.done.contains(&stage) {
             return;
@@ -588,7 +695,8 @@ impl Trace {
             self.record(
                 stage,
                 status,
-                Some(start.elapsed().as_secs_f64() * 1000.0),
+                at.checked_duration_since(start)
+                    .map(|d| d.as_secs_f64() * 1000.0),
                 error,
                 span,
                 Source::Rust,
@@ -671,6 +779,11 @@ impl Trace {
                 None
             }
         });
+        let context = self
+            .context
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
         service.emit(Event {
             schema_version: 1,
             event_id: uuid::Uuid::new_v4().to_string(),
@@ -700,7 +813,35 @@ impl Trace {
             status,
             duration_ms,
             fields: Fields {
-                related_trace_id: self.related.clone(),
+                environment_id: Some(context.2.clone()),
+                environment: if phase == Stage::SessionEnvironment {
+                    Some(
+                        service
+                            .shared
+                            .environment
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner())
+                            .1
+                            .clone(),
+                    )
+                } else {
+                    None
+                },
+                cache_outcome: if phase == Stage::PreviewCacheDecision {
+                    context.0
+                } else {
+                    None
+                },
+                output_stream: if phase == Stage::DownloadFirstOutput {
+                    context.1
+                } else {
+                    None
+                },
+                related_trace_id: self
+                    .related
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .clone(),
                 attempt_id: self.attempt.clone(),
                 error_code,
                 error_kind,
@@ -734,4 +875,29 @@ fn sort_events(events: &mut [Event]) {
             )
             .then(a.event_id.cmp(&b.event_id))
     });
+}
+
+struct ScopedFilter {
+    filter: Filter,
+    traces: Option<HashSet<String>>,
+}
+impl ScopedFilter {
+    fn new(filter: &Filter, events: &[Event]) -> Self {
+        let traces = filter.task_id.as_ref().map(|task| {
+            events
+                .iter()
+                .filter(|e| e.task_id.as_ref() == Some(task))
+                .map(|e| e.trace_id.clone())
+                .collect()
+        });
+        let mut filter = filter.clone();
+        filter.task_id = None;
+        Self { filter, traces }
+    }
+    fn matches(&self, event: &Event) -> bool {
+        self.traces
+            .as_ref()
+            .is_none_or(|t| t.contains(&event.trace_id))
+            && self.filter.matches(event)
+    }
 }

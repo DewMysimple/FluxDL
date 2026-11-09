@@ -6,6 +6,10 @@ fn main() {
         println!("2026.11.09-fixture");
         return;
     }
+    if args.iter().any(|a| a == "--help") {
+        println!("--print [WHEN:]TEMPLATE before_dl --no-simulate --progress");
+        return;
+    }
     let url = args.last().unwrap();
     let name = url.rsplit('/').next().unwrap().split('?').next().unwrap();
     if args.iter().any(|a| a == "--dump-single-json") {
@@ -35,7 +39,14 @@ fn main() {
         eprintln!("ERROR: download failure FIXTURE_TOKEN C:\\Users\\PrivatePerson\\secret.mp4");
         std::process::exit(1);
     }
-    sleep(Duration::from_millis(100));
+    if name.contains("silent") { sleep(Duration::from_millis(40)); return; }
+    if name.contains("stderr-only") { eprintln!("ERROR: fixed stderr-only fixture"); std::process::exit(1); }
+    if name.contains("immediate-output") { println!("fixed immediate fixture activity"); std::io::stdout().flush().unwrap(); }
+    if name.contains("stderr-first") { eprintln!("fixed fixture activity"); std::io::stderr().flush().unwrap(); }
+    sleep(Duration::from_millis(if name.contains("delayed-output") { 180 } else { 35 }));
+    for pair in args.windows(2) { if pair[0] == "--print" { if let Some(template) = pair[1].strip_prefix("before_dl:") { println!("{}",template.replace("%%","%"));std::io::stdout().flush().unwrap(); } } }
+    sleep(Duration::from_millis(65));
+    if name.contains("marker-delayed-progress") { sleep(Duration::from_millis(150)); }
     if name.contains("slow") {
         sleep(Duration::from_millis(300));
     }

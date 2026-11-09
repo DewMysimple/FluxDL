@@ -1,3 +1,4 @@
+import { TaskDiagnosticStatus } from "../features/diagnostics/TaskDiagnosticStatus";
 import { useAppSync } from "../hooks/useAppSync";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, RefreshCw, X } from "lucide-react";
@@ -13,6 +14,7 @@ export function QuickCaptureWindow() {
   const [media, setMedia] = useState<MediaInfo | null>(null);
   const [added, setAdded] = useState(false);
   const [taskId, setTaskId] = useState("");
+  const currentTask = useApp((s) => (taskId ? s.tasksById[taskId] : undefined));
   const notify = useApp((s) => s.notify);
   const shell = useRef<HTMLDivElement>(null);
   const result = useRef<HTMLDivElement>(null);
@@ -68,9 +70,18 @@ export function QuickCaptureWindow() {
           quick
           onMedia={(m) => {
             setMedia(m);
+            setTaskId("");
             setAdded(false);
           }}
         />
+        {currentTask && (
+          <TaskDiagnosticStatus
+            taskId={currentTask.id}
+            active={["queued", "resolving"].includes(currentTask.status)}
+            status={currentTask.status}
+            showBusinessState
+          />
+        )}
         {media && (
           <div ref={result} className="quick-result">
             <button

@@ -5,6 +5,7 @@ import { api } from "../../lib/api";
 import { bytes, date, duration, isActive, isRetryable } from "../../lib/utils";
 import { IconButton, MediaImage, Status, Progress } from "../../components/ui";
 import { useAction } from "../../hooks/useAction";
+import { TaskDiagnosticStatus } from "../diagnostics/TaskDiagnosticStatus";
 import { qualityName } from "../../lib/presets";
 
 export const TaskRow = memo(function TaskRow({
@@ -48,6 +49,14 @@ export const TaskRow = memo(function TaskRow({
               </>
             )}
           </span>
+          {task.status === "resolving" && (
+            <TaskDiagnosticStatus
+              taskId={task.id}
+              active
+              status={task.status}
+              compact
+            />
+          )}
           {task.status === "downloading" && (
             <>
               <Progress task={task} />
@@ -55,7 +64,9 @@ export const TaskRow = memo(function TaskRow({
                 {bytes(task.downloadedBytes)}
                 {task.totalBytes ? ` / ${bytes(task.totalBytes)}` : ""}
                 <span>
-                  {task.speed != null ? `${bytes(task.speed)}/s` : "正在连接"}
+                  {task.speed != null
+                    ? `${bytes(task.speed)}/s`
+                    : "速度暂无数据"}
                   {task.eta != null ? ` · 剩余 ${duration(task.eta)}` : ""}
                 </span>
               </span>

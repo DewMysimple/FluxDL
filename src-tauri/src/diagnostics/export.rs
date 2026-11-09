@@ -88,7 +88,7 @@ pub(super) fn bundle(
         lines.extend(line);
     }
     let safe_versions = safe_versions(versions);
-    let env = serde_json::json!({"app_version":env!("CARGO_PKG_VERSION"),"os":std::env::consts::OS,"os_major_version":os_major_version(),"architecture":std::env::consts::ARCH,"mode":health.mode,"engine_versions":safe_versions,"configuration":"external-engines;serial-queue;no-credentials-collected"});
+    let env = serde_json::json!({"app_version":env!("CARGO_PKG_VERSION"),"os":std::env::consts::OS,"os_major_version":os_major_version(),"architecture":std::env::consts::ARCH,"mode":health.mode,"engine_versions":safe_versions,"engine_versions_scope":"current detected only; historical samples use session_environments","session_environments":events.iter().filter(|e| e.fields.environment.is_some()).map(|e| serde_json::json!({"session_id":e.session_id,"environment_id":e.fields.environment_id,"environment":e.fields.environment})).collect::<Vec<_>>(),"configuration":"external-engines;serial-queue;no-credentials-collected"});
     let manifest = serde_json::json!({"schema_version":1,"included":["stage enums","UUID correlation","monotonic durations","error categories","safe engine versions"],"excluded":["URLs","titles","paths","cookies","tokens","headers","proxy credentials","raw stderr","command lines","clipboard","SQLite","environment variables"],"policy":"typed whitelist at ingestion and strict validation on read; never uploaded","unreadable_lines":unreadable,"truncated":truncated});
     let entries=vec![
         ("summary.md".into(),(report::markdown(events,health.mode,&health.session_id,unreadable,truncated,health.dropped,health.critical_dropped)+&report::engine_versions(&safe_versions)).into_bytes()),

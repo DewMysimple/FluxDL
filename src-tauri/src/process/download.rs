@@ -1,5 +1,5 @@
 use super::{
-    hidden_command, lines::read_lines, reap_child, stop_child, OutputStream, ProcessEvent,
+    hidden_command, lines::read_lines_traced, reap_child, stop_child, OutputStream, ProcessEvent,
 };
 use crate::errors::{AppError, AppResult, ErrorCode, ErrorPhase};
 use std::{
@@ -206,6 +206,9 @@ async fn run(
     let mut child = spawned?;
     if let Some(t) = &trace {
         t.begin(Stage::DownloadFirstProgress);
+        t.begin(Stage::DownloadFirstOutput);
+        t.begin(Stage::DownloadBeforeDl);
+        t.begin(Stage::DownloadProcessExit);
     }
     cancel
         .0
@@ -231,19 +234,21 @@ async fn run(
     let (lines, mut receiver) = mpsc::channel(128);
     let mut readers = Vec::new();
     if let Some(stdout) = child.stdout.take() {
-        readers.push(tokio::spawn(read_lines(
+        readers.push(tokio::spawn(read_lines_traced(
             stdout,
             OutputStream::Stdout,
             lines.clone(),
             phase,
+            trace.clone(),
         )));
     }
     if let Some(stderr) = child.stderr.take() {
-        readers.push(tokio::spawn(read_lines(
+        readers.push(tokio::spawn(read_lines_traced(
             stderr,
             OutputStream::Stderr,
             lines.clone(),
             phase,
+            trace.clone(),
         )));
     }
     drop(lines);
@@ -340,6 +345,19 @@ async fn run(
                 );
             }
         }
+    }
+    if let Some(t) = &trace {
+        t.finish(
+            Stage::DownloadProcessExit,
+            if cancel.is_cancelled() {
+                crate::diagnostics::Status::Cancelled
+            } else if failure.is_some() || !exit.is_some_and(|s| s.success()) {
+                crate::diagnostics::Status::Failed
+            } else {
+                crate::diagnostics::Status::Ok
+            },
+            failure.as_ref(),
+        );
     }
     cancel.0.pid.store(0, Ordering::SeqCst);
     if let Some(error) = failure {

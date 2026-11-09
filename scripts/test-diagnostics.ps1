@@ -7,8 +7,10 @@ $fixtureExe = Join-Path $fixtureRoot 'diagnostic-engine.exe'
 Push-Location $workspace
 try {
     if (-not $BenchmarkOnly) {
-        & cargo test --manifest-path src-tauri/Cargo.toml --lib diagnostics
-        if ($LASTEXITCODE -ne 0) { throw 'Diagnostic unit tests failed.' }
+        foreach ($filter in @('diagnostics', 'trusted_preview', 'first_actual_bytes', 'download_markers')) {
+            & cargo test --manifest-path src-tauri/Cargo.toml --lib $filter
+            if ($LASTEXITCODE -ne 0) { throw "Diagnostic unit tests failed: $filter" }
+        }
     }
     & rustc src-tauri/tests/fixtures/diagnostic_engine.rs --edition 2021 -o $fixtureExe
     if ($LASTEXITCODE -ne 0) { throw 'Diagnostic fixture compilation failed.' }

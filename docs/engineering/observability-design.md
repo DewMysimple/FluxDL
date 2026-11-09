@@ -49,3 +49,13 @@ Workspace侧栏底部入口，四Tab：概览、性能、事件、异常；真�
 仅Workspace可打开可信日志目录、导出、定位最近导出。原capabilities未扩大。导出通过Rust原生保存对话框（用户选择路径），前端不能传任意目的文件；拒绝覆盖、拒绝路径祖先链接，create_new。界面先显示六个将包含的文件与本地隐私提示，再打开保存对话框。ZIP32 STORE不引入依赖，固定条目名，每条32MiB/包64MiB上限，独立Python CRC校验。environment仅系统主版本/架构、应用和安全引擎版本、固定配置摘要；Windows RtlGetVersion只取主版本，不采集用户/设备名/环境变量。privacy-manifest列排除类别，不复制SQLite、下载文件或原始stderr。生成后可Explorer定位，绝无自动上传。
 
 未实现可选debug/trace级别开关，因此没有隐含超高频记录模式。默认只记录上述阶段和错误，下载每帧进度不进JSONL。
+
+## 0.2.1 扩展：可信预览、启动节点和环境
+
+新增reader首字节、经过本机帮助及下载实验验证的before_dl、标记至进度及owner回收节点，旧first_progress语义不变。标记是每次进程随机命名空间的精确stdout行，须经当前attempt和stream准入；不支持能力或未观察到不补0。实现、边界见[0.2.1调查](0.2.1-latency-investigation.md)。
+
+Rust短期内存可信预览180秒/128条/单条序列化256KiB；规范来源、模式、引擎路径/版本/文件元数据/配置代次和真实格式共同绑定，准入期间变配置拒绝旧授权。命中仍做目录与参数安全验证，miss/expiry/不匹配完整重提取或原错误；同有效引用同选择并发复用已接受任务。私有引用为独立opaque格式，不进入SQLite/JSONL/ZIP，不缓存提取媒体URL或原始info JSON。
+
+schema1以可选字段兼容旧记录；SessionEnvironment记录编译时Git/dirty及已净化引擎版本，事件用环境ID关联。跨session、环境或cache策略不混算分位数；历史缺元数据unknown。Overview/报告按真实决策与实际recheck开始计数，taskId过滤涵盖同Trace的入队前跨度；导出强制重读并附加这些记录对应的环境，旧记录不被最新版本改写。此前626–644/7.9ms是0.2查询实测，不直接充当新增字段后的0.2.1性能数字；新压力测试只按实际结果报告。
+
+Workspace准备行/详情及Quick反馈采用共享阶段组件，已等待时长来自同会话Rust耗时与前端本地续计，真实业务终态优先。Task/Trace复制仅固定阶段、UUID、耗时和已知revision；旧会话未闭合与截断窗口明确提示。原生菜单测试只操作经PID/控件命中核验的自有目标；Explorer以初始HWND清单保护既有窗口并在finally核对新窗口关闭。

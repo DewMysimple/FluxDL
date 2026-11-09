@@ -9,7 +9,45 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import { startMediaServer } from "./test-media-server.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const explorerHelper = path.join(
+  root,
+  "scripts/diagnostics-explorer-check.ps1",
+);
+const explorerSnapshot = spawnSync(
+  "powershell.exe",
+  ["-NoProfile", "-STA", "-File", explorerHelper, "-Action", "Snapshot"],
+  { windowsHide: true, encoding: "utf8" },
+);
+assert.equal(explorerSnapshot.status, 0, explorerSnapshot.stderr);
+const originalExplorerHandles =
+  JSON.parse(explorerSnapshot.stdout.trim()).join(",") || "none";
 const engine = fs.realpathSync(process.argv[2]);
+const ffmpegLookup = spawnSync("where.exe", ["ffmpeg.exe"], {
+  windowsHide: true,
+  encoding: "utf8",
+});
+assert.equal(ffmpegLookup.status, 0, "Real MP3 smoke requires local FFmpeg");
+const ffmpeg = fs.realpathSync(ffmpegLookup.stdout.trim().split(/\r?\n/)[0]);
+// Isolate only the owned child's PATH so the missing-dependency case cannot
+// silently fall back to another host FFmpeg. Normal cases use its explicit path.
+const ownedEnvironment = { ...process.env };
+const pathKey = Object.keys(ownedEnvironment).find(
+  (key) => key.toLowerCase() === "path",
+);
+const ownedPath = (ownedEnvironment[pathKey] ?? "")
+  .split(path.delimiter)
+  .filter(
+    (entry) =>
+      !["ffmpeg.exe", "ffprobe.exe"].some((name) =>
+        fs.existsSync(path.join(entry, name)),
+      ),
+  )
+  .join(path.delimiter);
+if (pathKey) delete ownedEnvironment[pathKey];
+ownedEnvironment.PATH = ownedPath;
+const repetitions = Number(process.argv[3] ?? 5);
+const latencyAB = process.argv[4] === "--latency-ab";
+assert(Number.isInteger(repetitions) && repetitions >= 5 && repetitions <= 40);
 const run = path.join(
   root,
   "artifacts",
@@ -27,6 +65,7 @@ const report = {
   network:
     "loopback HTTP original generated media; no proxy configured; repeat downloads to unique local files",
   measurements: [],
+  latencySamples: [],
   snapshots: [],
 };
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -46,7 +85,7 @@ async function launch() {
     cwd: root,
     windowsHide: true,
     env: {
-      ...process.env,
+      ...ownedEnvironment,
       FLUXDL_TEST_DATA_DIR: data,
       WEBVIEW2_USER_DATA_FOLDER: path.join(data, "webview"),
     },
@@ -96,7 +135,14 @@ async function launch() {
     if (workspace && quick) break;
     await wait(250);
   }
-  assert(workspace && quick);
+  assert(
+    workspace && quick,
+    `Owned application pages not ready: ${browser
+      .contexts()
+      .flatMap((context) => context.pages())
+      .map((page) => page.url())
+      .join(", ")}`,
+  );
   for (const page of [workspace, quick])
     page.on("pageerror", (error) => report.errors.push(error.message));
   await workspace.getByRole("heading", { name: /下载工作台/ }).waitFor();
@@ -106,6 +152,27 @@ const rpc = (command, args = {}, target = workspace) =>
     ({ command, args }) => window.__TAURI_INTERNALS__.invoke(command, args),
     { command, args },
   );
+async function measuredRpc(command, args, phase) {
+  return workspace.evaluate(
+    async ({ command, args, phase }) => {
+      const start = performance.now();
+      let success = false;
+      try {
+        const result = await window.__TAURI_INTERNALS__.invoke(command, args);
+        success = true;
+        return result;
+      } finally {
+        await window.__TAURI_INTERNALS__.invoke("record_frontend_diagnostic", {
+          traceId: args.traceId,
+          phase,
+          durationMs: performance.now() - start,
+          success,
+        });
+      }
+    },
+    { command, args, phase },
+  );
+}
 async function terminal(id) {
   for (let i = 0; i < 300; i++) {
     const s = await rpc("get_app_state");
@@ -140,10 +207,27 @@ try {
     settings: {
       ...state.settings,
       enginePath: engine,
+      ffmpegPath: ffmpeg,
       downloadDir: downloads,
       completionAction: "none",
     },
   });
+  const configured = await rpc("get_app_state");
+  report.engineAvailability = Object.fromEntries(
+    Object.entries(configured.engines)
+      .filter(
+        ([, value]) =>
+          value && typeof value === "object" && "available" in value,
+      )
+      .map(([name, value]) => [
+        name,
+        {
+          available: value.available,
+          source: value.source,
+          version: value.version,
+        },
+      ]),
+  );
   let health = await rpc("get_diagnostics_health");
   assert.equal(health.mode, "development");
   assert.equal(path.resolve(health.directory), path.join(root, "dev-logs"));
@@ -156,8 +240,14 @@ try {
       .some((f) => f.endsWith(".jsonl")),
   );
   pass("运行中自动报告与真实JSONL存在");
-  for (let i = 0; i < 5; i++) {
-    const url = `http://127.0.0.1:${fixture.port}/diagnostics-${i}.mp4?sig=FIXTURE_PRIVATE_SIGNATURE`;
+  for (let i = 0; i < repetitions * (latencyAB ? 2 : 1); i++) {
+    const policy =
+      !latencyAB || i % 4 === 0 || i % 4 === 3
+        ? "trusted_preview_cache"
+        : "full_recheck";
+    if (latencyAB) await rpc("configure_latency_test_mode", { mode: policy });
+    let finishedTask;
+    const url = `http://127.0.0.1:${fixture.port}/diagnostics-${latencyAB ? Math.floor(i / 2) : i}.mp4?sig=FIXTURE_PRIVATE_SIGNATURE`;
     if (i === 0) {
       await workspace.getByLabel("媒体链接").fill(url);
       await workspace.getByRole("button", { name: /解析链接/ }).click();
@@ -170,28 +260,101 @@ try {
         .waitFor();
       state = await rpc("get_app_state");
       const t = state.tasks[0];
-      assert.equal((await terminal(t.id)).status, "completed");
+      finishedTask = await terminal(t.id);
+      assert.equal(
+        finishedTask.status,
+        "completed",
+        finishedTask.error ?? "terminal task",
+      );
       report.firstTask = t.id;
       await workspace.getByRole("button", { name: "关闭详情" }).click();
     } else {
-      const media = await rpc("probe_media", {
-        url,
-        traceId: crypto.randomUUID(),
-      });
-      const t = await rpc("enqueue_download", {
-        input: {
-          media,
-          mode: "video",
-          quality: "1080",
-          formatId: null,
-          outputDir: null,
+      const parseTrace = crypto.randomUUID();
+      const media = await measuredRpc(
+        "probe_media",
+        { url, traceId: parseTrace },
+        "parse_ui_request",
+      );
+      const t = await measuredRpc(
+        "enqueue_download",
+        {
+          input: {
+            media,
+            mode: "video",
+            quality: "1080",
+            formatId: null,
+            outputDir: null,
+          },
+          traceId: crypto.randomUUID(),
+          relatedTraceId: parseTrace,
         },
-        traceId: crypto.randomUUID(),
-      });
-      assert.equal((await terminal(t.id)).status, "completed");
+        "enqueue_ui_request",
+      );
+      finishedTask = await terminal(t.id);
+      assert.equal(finishedTask.status, "completed");
     }
+
+    assert(fs.statSync(finishedTask.finalPath).size > 0);
+    assert.equal(
+      finishedTask.media.trustedPreviewRef ?? null,
+      null,
+      "private reference must not persist into tasks",
+    );
+    const records = (
+      await rpc("query_diagnostic_events", {
+        filter: { taskId: finishedTask.id, limit: 200 },
+      })
+    ).events;
+    const related = records.find((e) => e.fields.related_trace_id)?.fields
+      .related_trace_id;
+    const parseRecords = related
+      ? (
+          await rpc("query_diagnostic_events", {
+            filter: { traceId: related, limit: 200 },
+          })
+        ).events
+      : [];
+    const value = (phase) =>
+      [...records, ...parseRecords].find(
+        (e) => e.phase === phase && e.status === "ok",
+      )?.duration_ms ?? null;
+    const outcome =
+      records.find((e) => e.fields.cache_outcome)?.fields.cache_outcome ??
+      "legacy";
+    if (latencyAB) {
+      assert.equal(
+        outcome,
+        policy === "trusted_preview_cache" ? "hit" : "disabled",
+      );
+      assert.equal(
+        records.some((e) => e.phase === "enqueue_metadata_recheck"),
+        policy === "full_recheck",
+      );
+    }
+    report.latencySamples.push({
+      order: i,
+      policy,
+      success: true,
+      fileVerified: true,
+      cacheOutcome: outcome,
+      frontendParseMs: value("parse_ui_request"),
+      parseMs: value("parse_total"),
+      enqueueResponseMs: value("enqueue_ui_request"),
+      recheckMs: value("enqueue_metadata_recheck"),
+      trustValidateMs: value("enqueue_trusted_validate"),
+      enqueueToProgressMs: value("enqueue_to_progress"),
+      spawnToProgressMs: value("download_first_progress"),
+      firstOutputMs: value("download_first_output"),
+      beforeDlMs: value("download_before_dl"),
+      beforeDlToProgressMs: value("download_before_dl_to_progress"),
+      engineSpawnMs: value("download_engine_spawn"),
+      queueMs: value("queue_wait"),
+      totalMs: value("download_total"),
+    });
   }
-  pass("真实yt-dlp五次本地合法媒体解析、二次校验、下载与终态");
+  pass(
+    `真实yt-dlp${repetitions * (latencyAB ? 2 : 1)}次本地合法媒体解析、复核、下载与终态`,
+  );
   await rpc("refresh_diagnostic_report");
   const overview = await rpc("get_diagnostics_overview", {
     filter: { sessionId: health.sessionId },
@@ -225,11 +388,15 @@ try {
     1,
   );
   for (const phase of [
-    "enqueue_metadata_recheck",
+    "enqueue_trusted_validate",
     "enqueue_persist",
     "queue_wait",
     "download_engine_spawn",
     "download_first_progress",
+    "download_first_output",
+    "download_before_dl",
+    "download_before_dl_to_progress",
+    "download_process_exit",
     "download_terminal",
   ]) {
     const events = await rpc("query_diagnostic_events", {
@@ -242,6 +409,114 @@ try {
   }
   report.measurements = overview.statistics;
   report.engineVersion = (await rpc("get_app_state")).engines.ytdlp.version;
+  let restartMedia;
+  await rpc("configure_latency_test_mode", { mode: "trusted_preview_cache" });
+  report.controlledHttp = [];
+  for (const profile of ["delayed", "drop"]) {
+    const media = await rpc("probe_media", {
+      url: `http://127.0.0.1:${fixture.port}/${profile}-controlled.mp4`,
+    });
+    fixture.setResponseProfile(profile);
+    let terminalTask;
+    try {
+      const task = await rpc("enqueue_download", {
+        input: {
+          media,
+          mode: "video",
+          quality: "1080",
+          formatId: null,
+          outputDir: null,
+        },
+        traceId: crypto.randomUUID(),
+      });
+      terminalTask = await terminal(task.id);
+      assert.equal(
+        terminalTask.status,
+        profile === "drop" ? "failed" : "completed",
+      );
+    } finally {
+      fixture.setResponseProfile("normal");
+    }
+    if (profile === "drop") {
+      await rpc("retry_task", { taskId: terminalTask.id });
+      assert.equal((await terminal(terminalTask.id)).status, "completed");
+    }
+    report.controlledHttp.push({
+      profile,
+      expectedTerminalVerified: true,
+      retryVerified: profile === "drop",
+    });
+  }
+  pass("可控延迟HTTP仍成功；断流不假报完成，恢复网络后重试成功");
+  const originalSettings = (await rpc("get_app_state")).settings;
+  const audioMedia = await rpc("probe_media", {
+    url: `http://127.0.0.1:${fixture.port}/audio-check.mp4`,
+  });
+  const direct = audioMedia.formats.find((f) => f.hasVideo && f.hasAudio);
+  assert(direct);
+  const audioTask = await rpc("enqueue_download", {
+    input: {
+      media: audioMedia,
+      mode: "audio",
+      quality: "1080",
+      formatId: direct.formatId,
+      outputDir: null,
+    },
+  });
+  const audioDone = await terminal(audioTask.id);
+  assert.equal(audioDone.status, "completed");
+  const snapshot = await rpc("get_app_state");
+  const videoDone = snapshot.tasks.find((t) => t.id === report.firstTask);
+  const probeFile = (file) => {
+    const result = spawnSync(
+      snapshot.engines.ffprobe.path,
+      [
+        "-v",
+        "error",
+        "-show_entries",
+        "format=format_name:stream=codec_type",
+        "-of",
+        "json",
+        file,
+      ],
+      { windowsHide: true, encoding: "utf8", timeout: 15000 },
+    );
+    assert.equal(result.status, 0);
+    return JSON.parse(result.stdout);
+  };
+  const videoFormat = probeFile(videoDone.finalPath),
+    audioFormat = probeFile(audioDone.finalPath);
+  assert(
+    videoFormat.streams.some((s) => s.codec_type === "video") &&
+      videoFormat.streams.some((s) => s.codec_type === "audio"),
+  );
+  assert.equal(audioFormat.format.format_name, "mp3");
+  assert(audioFormat.streams.every((s) => s.codec_type === "audio"));
+  report.mediaFormats = { videoVerified: true, mp3Verified: true };
+  pass("真实ffprobe确认视频含音视频，MP3仅含音轨");
+  try {
+    await rpc("update_settings", {
+      settings: {
+        ...originalSettings,
+        ffmpegPath: path.join(run, "missing-ffmpeg.exe"),
+      },
+    });
+    assert.equal((await rpc("get_app_state")).engines.ffmpeg.available, false);
+    await assert.rejects(() =>
+      rpc("enqueue_download", {
+        input: {
+          media: audioMedia,
+          mode: "audio",
+          quality: "1080",
+          formatId: direct.formatId,
+          outputDir: null,
+        },
+      }),
+    );
+  } finally {
+    await rpc("update_settings", { settings: originalSettings });
+  }
+  pass("FFmpeg缺失时音频模式安全拒绝，原配置恢复");
   pass("Trace含实际二次校验、DB、排队、真正spawn、首次有效进度及持久终态");
   await rpc("show_task_diagnostics", { taskId: report.firstTask });
   await workspace.getByRole("heading", { name: "诊断中心." }).waitFor();
@@ -259,6 +534,19 @@ try {
   await workspace.getByRole("button", { name: "复制 Trace ID" }).click();
   await workspace.getByText("Trace ID 已复制", { exact: true }).waitFor();
   pass("实际复制Trace ID");
+  await workspace
+    .getByRole("button", { name: "复制本任务诊断摘要", exact: true })
+    .click();
+  const safeSummary = await workspace.evaluate(() =>
+    navigator.clipboard.readText(),
+  );
+  assert(safeSummary.includes(trace) && safeSummary.includes(linkedParse));
+  assert(
+    !safeSummary.includes("FIXTURE_PRIVATE_SIGNATURE") &&
+      !safeSummary.includes(downloads) &&
+      !safeSummary.includes("http://"),
+  );
+  pass("本任务安全摘要复制包含关联解析与代码版本，不含URL或保存路径");
   await workspace
     .getByRole("button", { name: "打开日志目录", exact: true })
     .click();
@@ -374,6 +662,9 @@ try {
     "light",
   );
   pass("诊断页浅色及Quick Capture主题同步");
+  restartMedia = await rpc("probe_media", {
+    url: `http://127.0.0.1:${fixture.port}/restart-reference.mp4`,
+  });
   const session = health.sessionId;
   await stop();
   assert(fs.existsSync(path.join(root, "dev-logs/latest-report.md")));
@@ -398,6 +689,41 @@ try {
     true,
   );
   pass("退出日志保留，重启新session且双窗可查询旧Trace");
+  const restartedTask = await rpc("enqueue_download", {
+    input: {
+      media: restartMedia,
+      mode: "video",
+      quality: "1080",
+      formatId: null,
+      outputDir: null,
+    },
+    traceId: crypto.randomUUID(),
+  });
+  assert.equal((await terminal(restartedTask.id)).status, "completed");
+  const restartRecords = (
+    await rpc("query_diagnostic_events", {
+      filter: { taskId: restartedTask.id, limit: 200 },
+    })
+  ).events;
+  assert(restartRecords.some((e) => e.fields.cache_outcome === "missing"));
+  assert(
+    restartRecords.some(
+      (e) => e.phase === "enqueue_metadata_recheck" && e.status === "ok",
+    ),
+  );
+  pass("重启后旧可信引用失效并走完整安全复核");
+  const fallbackValue = (phase) =>
+    restartRecords.find((e) => e.phase === phase && e.status === "ok")
+      ?.duration_ms ?? null;
+  report.fallbackSamples = [
+    {
+      policy: "restart_missing",
+      samples: 1,
+      recheckMs: fallbackValue("enqueue_metadata_recheck"),
+      enqueueToProgressMs: fallbackValue("enqueue_to_progress"),
+      spawnToProgressMs: fallbackValue("download_first_progress"),
+    },
+  ];
   const records = await rpc("query_diagnostic_events", {
     filter: { limit: 200 },
   });
@@ -415,6 +741,28 @@ try {
   console.error(error);
   process.exitCode = 1;
 } finally {
+  for (const folder of [path.join(root, "dev-logs"), run]) {
+    const cleanup = spawnSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-STA",
+        "-File",
+        explorerHelper,
+        "-Action",
+        "Cleanup",
+        "-Folder",
+        folder,
+        "-BeforeHandles",
+        originalExplorerHandles,
+      ],
+      { windowsHide: true, encoding: "utf8" },
+    );
+    if (cleanup.status !== 0) {
+      report.errors.push("Explorer cleanup did not complete");
+      process.exitCode = 1;
+    }
+  }
   if (app) {
     try {
       await rpc("request_exit");

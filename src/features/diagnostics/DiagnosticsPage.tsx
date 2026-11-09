@@ -12,9 +12,10 @@ import { isDesktop } from "../../lib/api";
 import { errorText } from "../../lib/utils";
 import { Button } from "../../components/ui";
 import { Modal } from "../../components/overlays";
-import { diagnosticsApi } from "./diagnostics-api";
+import { diagnosticsApi, taskDiagnosticSummary } from "./diagnostics-api";
 import {
   stageLabels,
+  phaseLabel,
   statusLabels,
   type DiagnosticEvent,
   type DiagnosticFilter,
@@ -92,6 +93,18 @@ export function DiagnosticsPage({
       ]);
       if (request !== generation.current.value) return;
       setPage(next);
+      if (initialTask && !trace)
+        setTrace(
+          (
+            next.events.find(
+              (e) =>
+                e.source === "rust" &&
+                e.fields.attempt_id &&
+                e.session_id === status.sessionId,
+            ) ??
+            next.events.find((e) => e.source === "rust" && e.fields.attempt_id)
+          )?.trace_id ?? "",
+        );
       setOverview(summary);
       setHealth(status);
       setTraceEvents(timeline?.events ?? []);
@@ -103,7 +116,7 @@ export function DiagnosticsPage({
         setReading(false);
       }
     }
-  }, [filter, tab, trace]);
+  }, [filter, tab, trace, initialTask]);
   useEffect(() => {
     const requestState = generation.current;
     let disposed = false;
@@ -136,6 +149,12 @@ export function DiagnosticsPage({
     setTrace(id);
     setTab("性能");
   };
+  const stateText = (event: DiagnosticEvent) =>
+    event.status === "started" &&
+    health &&
+    event.session_id !== health.sessionId
+      ? "旧会话未闭合，当前状态未确认"
+      : (statusLabels[event.status] ?? "未知状态");
   const traces = [
     ...new Map((page?.events ?? []).map((e) => [e.trace_id, e])).values(),
   ].filter((e) => e.phase !== "session");
@@ -194,6 +213,13 @@ export function DiagnosticsPage({
           {health?.level}
         </span>
       </div>
+      {health?.build && (
+        <p className="muted small-text">
+          当前会话代码 {health.build.revision?.slice(0, 12) ?? "unknown"} ·
+          dirty {String(health.build.dirty ?? "unknown")} · v
+          {health.build.app_version}
+        </p>
+      )}
       {health?.directory && (
         <details className="diagnostic-directory">
           <summary>实际日志目录</summary>
@@ -395,8 +421,36 @@ export function DiagnosticsPage({
           清除筛选
         </Button>
       </form>
+      {(filter.taskId || initialTask) && (
+        <Button
+          disabled={!isDesktop}
+          onClick={() =>
+            void action(
+              async () =>
+                navigator.clipboard.writeText(
+                  await taskDiagnosticSummary(filter.taskId ?? initialTask),
+                ),
+              "本任务安全诊断摘要已复制",
+            )
+          }
+        >
+          <Copy size={14} />
+          复制本任务诊断摘要
+        </Button>
+      )}
       {tab === "概览" && (
         <>
+          {overview?.cacheStats && (
+            <p className="muted">
+              当前范围可信预览：命中 {overview.cacheStats.hit} 次；缺失{" "}
+              {overview.cacheStats.missing} 次；过期{" "}
+              {overview.cacheStats.expired} 次；失效{" "}
+              {overview.cacheStats.invalidated} 次；实际完整重新提取{" "}
+              {overview.cacheStats.fullRechecks} 次。重复请求复用{" "}
+              {overview.cacheStats.duplicate} 次，开发完整复核对照{" "}
+              {overview.cacheStats.disabled} 次。
+            </p>
+          )}
           <div className="diagnostic-metrics">
             {[
               ["本会话解析", overview?.parses],
@@ -411,7 +465,11 @@ export function DiagnosticsPage({
           </div>
           <div className="diagnostic-metrics">
             {["parse_ui_request", "enqueue_to_progress"].map((phase) => {
-              const s = overview?.statistics.find((s) => s.phase === phase);
+              const s = overview?.statistics.find(
+                (s) =>
+                  s.phase === phase &&
+                  (!s.sessionId || s.sessionId === health?.sessionId),
+              );
               return (
                 <div key={phase}>
                   <span>
@@ -441,7 +499,7 @@ export function DiagnosticsPage({
                 onClick={() => selectTrace(e.trace_id)}
               >
                 <span>
-                  {stageLabels[e.phase]} · {e.fields.error_code ?? "阶段失败"}
+                  {phaseLabel(e.phase)} · {e.fields.error_code ?? "阶段失败"}
                 </span>
                 <code>{e.trace_id}</code>
                 <ArrowRight size={14} />
@@ -484,7 +542,7 @@ export function DiagnosticsPage({
                 onClick={() => selectTrace(e.trace_id)}
               >
                 <code>{e.trace_id}</code>
-                <span>{stageLabels[e.phase]}</span>
+                <span>{phaseLabel(e.phase)}</span>
                 {traceOrder === "slow" && <span>{ms(e.duration_ms)}</span>}
               </button>
             ))}
@@ -495,6 +553,12 @@ export function DiagnosticsPage({
             </p>
           ) : (
             <>
+              <p className="muted small-text">
+                尝试 ID：
+                {traceEvents.find((e) => e.fields.attempt_id)?.fields
+                  .attempt_id ?? "预览解析或无有效记录"}
+                。未结束、跨会话和超出保留窗口的阶段不补零。
+              </p>
               <div className="diagnostic-trace-heading">
                 <h2>阶段时间轴</h2>
                 <code>{trace}</code>
@@ -517,7 +581,7 @@ export function DiagnosticsPage({
                     key={e.span_id}
                   >
                     <summary>
-                      <span>{stageLabels[e.phase]}</span>
+                      <span>{phaseLabel(e.phase)}</span>
                       <i>
                         <b
                           style={{
@@ -536,7 +600,7 @@ export function DiagnosticsPage({
                         {e.status === "started" &&
                         e.session_id !== health?.sessionId
                           ? "上一会话中断 / 记录缺失"
-                          : statusLabels[e.status]}{" "}
+                          : stateText(e)}{" "}
                         ·{" "}
                         {e.event === "fault_observed"
                           ? "瞬时异常，不计跨度耗时"
@@ -559,8 +623,8 @@ export function DiagnosticsPage({
                       <dd>{ms(e.elapsed_since_session_start_ms)}</dd>
                       <dt>结果 / 错误分类</dt>
                       <dd>
-                        {statusLabels[e.status]} / {e.fields.error_code ?? "无"}{" "}
-                        / {e.fields.error_kind ?? "未分类"}
+                        {stateText(e)} / {e.fields.error_code ?? "无"} /{" "}
+                        {e.fields.error_kind ?? "未分类"}
                       </dd>
                       {e.level === "error" && (
                         <>
@@ -575,6 +639,21 @@ export function DiagnosticsPage({
                       )}
                       <dt>尝试 ID</dt>
                       <dd>{e.fields.attempt_id ?? "尚未创建任务"}</dd>
+                      {e.fields.cache_outcome && (
+                        <>
+                          <dt>缓存决策</dt>
+                          <dd>
+                            {e.fields.cache_outcome}
+                            （仅表示准入决策，下载仍以真实终态为准）
+                          </dd>
+                        </>
+                      )}
+                      {e.fields.output_stream && (
+                        <>
+                          <dt>首次输出管线</dt>
+                          <dd>{e.fields.output_stream}（不代表网络首字节）</dd>
+                        </>
+                      )}
                     </dl>
                     {e.task_id && (
                       <Button onClick={() => onTask(e.task_id!)}>
@@ -630,7 +709,7 @@ export function DiagnosticsPage({
                       </small>
                     </td>
                     <td>
-                      {stageLabels[e.phase]}
+                      {phaseLabel(e.phase)}
                       <small>
                         {e.event} {e.fields.error_code} {e.fields.error_kind}
                       </small>
@@ -660,7 +739,7 @@ export function DiagnosticsPage({
                       )}
                     </td>
                     <td>
-                      {statusLabels[e.status]}
+                      {stateText(e)}
                       <small>
                         {e.duration_ms == null ? "—" : ms(e.duration_ms)}
                       </small>
@@ -771,8 +850,21 @@ function Statistics({
         </thead>
         <tbody>
           {values.map((s) => (
-            <tr key={s.phase}>
-              <td>{s.label}</td>
+            <tr
+              key={`${s.phase}-${s.sessionId ?? ""}-${s.environmentId ?? "unknown"}-${s.cacheOutcome ?? "none"}`}
+            >
+              <td>
+                {s.label}
+                <small className="diagnostic-environment">
+                  策略 {s.cacheOutcome ?? "非预览入队或未知"} · 会话{" "}
+                  {s.sessionId?.slice(0, 8) ?? "unknown"} · revision{" "}
+                  {s.codeRevision?.slice(0, 8) ?? "unknown"}
+                  <br />
+                  {Object.entries(s.engineVersions ?? {})
+                    .map(([k, v]) => `${k} ${v}`)
+                    .join(" · ") || "引擎环境未知"}
+                </small>
+              </td>
               <td>{s.samples}</td>
               <td>
                 {s.samples < 20 ? "样本不足；仅经验分位数" : "当前窗口样本"}

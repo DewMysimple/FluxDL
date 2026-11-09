@@ -57,6 +57,7 @@ async fn check(path: PathBuf, source: &str, version_arg: &str) -> EngineInfo {
                 .take(240)
                 .collect();
             EngineInfo {
+                before_dl_supported: false,
                 path: Some(display),
                 version: Some(version),
                 source: source.into(),
@@ -128,8 +129,26 @@ impl<'a> EngineResolver<'a> {
             if source == "bundled" && !path.exists() {
                 continue;
             }
-            let found = check(path, source, "--version").await;
+            let mut found = check(path.clone(), source, "--version").await;
             if found.available {
+                // Offline capability check, only when resolving an engine. An
+                // unknown/older executable keeps the original download flags.
+                found.before_dl_supported = capture(
+                    path,
+                    vec!["--help".into()],
+                    Duration::from_secs(8),
+                    128 * 1024,
+                    64 * 1024,
+                    ErrorPhase::Detect,
+                )
+                .await
+                .is_ok_and(|o| {
+                    o.success
+                        && o.stdout.contains("before_dl")
+                        && o.stdout.contains("--print")
+                        && o.stdout.contains("--no-simulate")
+                        && o.stdout.contains("--progress")
+                });
                 ytdlp = found;
                 break;
             }

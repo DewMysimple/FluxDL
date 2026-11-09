@@ -5,7 +5,7 @@
 - 沟通、工程说明和交付使用简体中文。产品需求以 `prompt/FluxDL_Codex_MVP_Prompt.md` 为基线；实现以当前源码和配置为准。
 - Windows-first，React / TypeScript / Vite + Tauri 2 / Rust。真实下载、队列、进度与持久化由 Rust 管理；浏览器只作界面预览。
 - 修改前检查 `git status --short --branch`、当前 HEAD 与实际远程分支，保留用户和其他任务的改动。
-- 按修改范围执行必要检查：前端 `npm run typecheck`、`npm run lint`、`npm run format:check`、`npm test`；后端 `npm run check:rust`、`npm run format:rust`、`npm run lint:rust`、`npm run test:rust`；队列生命周期使用 `./scripts/test-queue.ps1`。仅改记忆或文档时检查相关引用和记忆，不为记忆重跑业务测试。当前诊断迭代验证见 `docs/engineering/diagnostics-validation.md`；`0.2.0-validation-report.md`与`docs/validation.md`保留历史范围。
+- 按修改范围执行必要检查：前端 `npm run typecheck`、`npm run lint`、`npm run format:check`、`npm test`；后端 `npm run check:rust`、`npm run format:rust`、`npm run lint:rust`、`npm run test:rust`；队列生命周期使用 `./scripts/test-queue.ps1`。仅改记忆或文档时检查相关引用和记忆，不为记忆重跑业务测试。当前0.2.1验证见 `docs/engineering/0.2.1-validation-report.md`；`diagnostics-validation.md`、`0.2.0-validation-report.md`与`docs/validation.md`保留历史范围。
 
 ## Git 交付：持续授权
 
@@ -18,6 +18,7 @@
 - 纯只读对话或没有文件变化时不制造空提交。暂存前检查变更归属，不将用户无关改动或其他任务成果混入本次提交。
 - 依赖、构建目录、安装包、测试媒体、用户数据库、凭证和本机临时数据不纳入提交；遵循 `.gitignore`。最新本地交付固定为 `release-output/FluxDL/` 和 `release-output/FluxDL.zip`，或通过CI artifacts交付。
 - 不使用强制推送、重写远程历史或丢弃用户改动来完成交付。远程领先时先获取并保全、整合相关变更；推送失败时保留本地提交并如实报告原因及恢复位置。
+- 用户要求命令/测试打开的资源管理器窗口用完即关闭；只关闭本轮新开的自有窗口，保留原有或无关窗口，不结束Explorer进程。
 - 推送后核对远程分支 SHA 与本地 HEAD 一致，并在最终答复中说明提交与推送结果。验证报告只声称实际执行和覆盖的范围。
 
 ## 构建与本地产物
@@ -40,3 +41,10 @@
 - Debug默认工程根`dev-logs/`；Release只能用Tauri app_log_dir，不回退源码/发行目录。日志、诊断ZIP及测试证据禁止提交；capabilities不扩大通用文件权限。
 - 耗时使用Rust Instant / 前端performance.now各自计算，解析/入队分Trace，用户选择时间不计入内部耗时。保留二次安全复核、attempt准入及durable ack后终态。
 - 相关改动执行`npm run test:diagnostics`；重复基准`benchmark:diagnostics`，真实桌面`node scripts/diagnostics-smoke.mjs <本地yt-dlp.exe>`。仅管理自有隔离debug实例，不停止用户发行版。结果及边界见`docs/engineering/diagnostics-validation.md`。
+
+## 下载准备与可信预览
+
+- 二次安全复核必须保留；可用Rust内存持有的可信预览替代重复联网提取，默认180秒/128条/单条256KiB序列化上限。前端MediaInfo与引用本身不授权格式；URL/模式/格式/目录/参数/引擎配置代次均复核，无效引用完整重提取或安全拒绝。引用不入任务SQLite、日志、报告或ZIP。
+- 不改变下载进程仍按原URL提取的语义；只有离线帮助已确认支持才加before_dl标记。首输出/标记/首协议进度使用实际Instant，不解释为DNS完成或媒体首字节；缺失阶段保持未知。
+- 编译期注入revision/dirty，运行时不访问Git或源码。历史按session/environment/cache策略分别统计，旧版本未知就保持unknown，不用最新探测版本回填。
+- A/B只在debug/测试，正式版不提供测试策略开关。复用test:diagnostics与benchmark:diagnostics；真实对照命令为诊断smoke追加20 --latency-ab，逐样本只归档净化数字。Scope/所有权核验通过后才可操作自有原生菜单，不把UIA超时标成功。

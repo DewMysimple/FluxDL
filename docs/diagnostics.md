@@ -24,3 +24,13 @@ node scripts/diagnostics-smoke.mjs 'C:\工具\yt-dlp.exe'
 前两项使用明确标注的确定性fixture和生产Manager，输出在ignored artifacts下；不代表互联网网站性能。桌面脚本使用真实用户已有yt-dlp、原创本地HTTP媒体、隔离数据库/profile，只控制自己启动的debug进程；9322被占用时拒绝附着其他实例。导出辅助器仅确认本脚本自己的debug原生保存对话框，目的限制在工程artifacts。常规开发仍用`npm run desktop:dev`，浏览器`npm run dev`只显示空状态，不提供伪造诊断样本。
 
 协议、阶段边界和保留策略见[设计](engineering/observability-design.md)，实际测试及平台缺口见[验收](engineering/diagnostics-validation.md)，性能数据见[分析](engineering/performance-analysis.md)。
+
+## 0.2.1：等待、可信预览与代码版本
+
+任务详情进入「性能诊断」会优先定位当前会话尝试，可查看关联解析或上次尝试并「复制本任务诊断摘要」。准备阶段显示实际引擎节点和已等待秒数；30秒提示是提醒，不表示故障。首次管线输出、下载前标记和首次有效协议进度都不是网络首字节；未知/旧会话未闭合不补耗时。
+
+首次预览由Rust缓存180秒、最多128条，命中时省去入队重复提取，路径/格式/引擎仍验证；无引用、过期、变配置或不匹配则完整重新解析。私有引用不持久化/不导出。诊断概览显示缓存决策及实际重提取次数，统计按会话/环境/策略分开；筛选/保留窗口可能只保留部分阶段。
+
+新报告含编译revision/dirty及会话引擎环境；旧记录缺失就显示unknown，不用当前版本回填。Release不运行Git，不提供A/B开关。开发对照复现：`node scripts/diagnostics-smoke.mjs '<本地yt-dlp.exe>' 20 --latency-ab`，程序须先构建debug。实际测试会在finally关闭本轮新开的自有Explorer窗口，保留原有窗口。
+
+[0.2.1验收](engineering/0.2.1-validation-report.md)及[性能复测](engineering/0.2.1-performance-after.md)是当前范围；此前诊断验收保留0.2历史。

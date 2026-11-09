@@ -283,3 +283,16 @@
     display: none;
   }
 }
+
+.diagnostic-environment {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
+.task-copy > .diagnostic-observed-status {
+  display: block;
+  font-size: 11px;
+  line-height: 1.5;
+}

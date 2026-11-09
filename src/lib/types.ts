@@ -21,6 +21,7 @@ export interface Settings {
   completionAction: string;
 }
 export interface EngineInfo {
+  beforeDlSupported?: boolean;
   path: string | null;
   version: string | null;
   source: string;
@@ -45,6 +46,7 @@ export interface FormatOption {
   requiresFfmpeg: boolean;
 }
 export interface MediaInfo {
+  trustedPreviewRef?: string | null;
   url: string;
   title: string;
   mediaId: string;
