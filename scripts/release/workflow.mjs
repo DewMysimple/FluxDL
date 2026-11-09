@@ -58,6 +58,8 @@ export async function publish(ctx, base) {
     await journal("ready");
     await hook(ctx, "ready");
     if (await exists(output)) {
+      // A user may have added a file while the candidate was being prepared.
+      await verifyPair(ctx, output);
       await rename(ctx, output, backup);
       backedUp = true;
       await journal("backup-moved");
@@ -71,6 +73,7 @@ export async function publish(ctx, base) {
     await journal("verified");
     // Cleanup errors cannot trigger rollback after a verified backup was already removed.
     try {
+      if (backedUp) await verifyPair(ctx, backup);
       await removeTree(root, transaction);
     } catch (e) {
       console.warn(
@@ -334,6 +337,7 @@ export async function releaseClean(ctx, options = {}) {
           const current = await verifyPair(ctx, path.join(root, OUTPUT));
           if (current.buildId !== path.basename(item.path).slice(12))
             throw new Error("已验证输出不再属于该事务，保留备份");
+          await verifyPair(ctx, backup);
           deletedBytes += (await walkFiles(root, item.path)).reduce(
             (n, file) => n + file.bytes,
             0,

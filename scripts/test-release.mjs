@@ -839,3 +839,44 @@ test("空许可证目录不能被ZIP静默遗漏，旧版保持不变", async (t
   await assert.rejects(releaseStage(ctx), /空目录/u);
   assert.deepEqual(await snapshot(ctx), before);
 });
+
+test("暂存期间旧正式目录出现未知文件：不挪动、不删除用户添加的文件", async (t) => {
+  const ctx = await fixture(t);
+  const first = await releaseStage(ctx);
+  const note = path.join(output(ctx), "FluxDL/keep.txt");
+  await seedBuild(ctx, "new-build");
+  await assert.rejects(
+    releaseStage({
+      ...ctx,
+      hook: async (phase) => {
+        if (phase === "ready") await fs.writeFile(note, "user-added");
+      },
+    }),
+    /非交付文件/u,
+  );
+  assert.equal(await fs.readFile(note, "utf8"), "user-added");
+  assert.equal(
+    sha256(await fs.readFile(path.join(first.directory, "FluxDL.exe"))),
+    first.executables[0].sha256,
+  );
+});
+
+test("已备份目录被加入未知文件：成功的新包保留，备份和未知文件不得清理", async (t) => {
+  const ctx = await fixture(t);
+  await releaseStage(ctx);
+  await seedBuild(ctx, "new-build");
+  let note;
+  const result = await releaseStage({
+    ...ctx,
+    hook: async (phase) => {
+      if (phase !== "backup-moved") return;
+      const pending = await transactions(ctx.root, path.join(ctx.root, WORK));
+      note = path.join(pending[0], "previous-output/FluxDL/keep.txt");
+      await fs.writeFile(note, "user-added");
+    },
+  });
+  assert.equal(result.manifest, "passed");
+  assert.equal(await fs.readFile(note, "utf8"), "user-added");
+  await assert.rejects(releaseClean(ctx, { apply: true }), /非交付文件/u);
+  assert.equal(await fs.readFile(note, "utf8"), "user-added");
+});
