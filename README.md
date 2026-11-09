@@ -44,7 +44,7 @@ npm run release:stage
 
 `desktop:build` 使用 Tauri 2 构建 Windows x64 NSIS 安装包，输出为 `src-tauri/target/release/bundle/nsis/FluxDL_0.2.0_x64-setup.exe`，程序为 `src-tauri/target/release/fluxdl.exe`。`release:stage` 将安装包、程序、许可证和 SHA-256 校验值整理到项目根目录的 `release/`。本轮保留用户正在运行的0.1发行文件，不执行该复制步骤；新产物保留在target中。构建工具首次可能下载 NSIS/WebView2 官方打包资源；安装器仅在缺少 WebView2 时提供微软运行时引导安装，这与下载媒体引擎是两件事。版本未签名；这不是内置全依赖的绿色单文件版。
 
-CI 配置在 `.github/workflows/windows.yml`，在 push、pull request 或手动运行时执行类型、lint、格式、Clippy、前端/Rust 测试、真实 worker fixture 和 NSIS 构建，上传安装包。本轮0.2工程优化按任务要求保留本地修改、不commit/push，没有触发或声称远程CI通过。
+CI 配置在 `.github/workflows/windows.yml`，在 push、pull request 或手动运行时执行类型、lint、格式、Clippy、前端/Rust 测试、真实 worker fixture 和 NSIS 构建，上传安装包。0.2工程优化的本机验证完成后，按用户后续要求补交并推送为 `876718a`；远程CI结果尚未核实。
 
 本地检查：`npm run typecheck`、`npm run lint`、`npm run format:check`、`npm test`、`npm run build`；Rust：`npm run format:rust`、`npm run lint:rust`、`npm run test:rust`，以及`.\scripts\test-queue.ps1`。`npm run test:styles`复现12项固定浏览器CSS等值检查。三档性能基准与实际结果见[工程基线](docs/engineering/0.2.0-performance-baseline.md)、[复测](docs/engineering/0.2.0-performance-after.md)和[验证报告](docs/engineering/0.2.0-validation-report.md)。
 
@@ -111,4 +111,4 @@ node scripts/desktop-smoke.mjs 'E:\VedioDownload\yt-dlp.exe'
 
 工程仓库：[DewMysimple/FluxDL](https://github.com/DewMysimple/FluxDL)。工程记忆使用 standard 模式，入口是 [wiki_memory/README.md](wiki_memory/README.md)，协作与持续提交推送规则见 [AGENTS.md](AGENTS.md)。
 
-后续方向：独立引擎更新流程、可配置快捷键、播放列表设计、签名发布。本轮不创建远程Release、不触发CI；0.2产物在上述target目录，release/保留用户原0.1运行文件。后续CI产物可通过Actions获取，以实际运行结果为准。
+后续方向：独立引擎更新流程、可配置快捷键、播放列表设计、签名发布。0.2产物在上述target目录，release/保留用户原0.1运行文件；未创建远程Release。CI产物可通过Actions获取，以实际运行结果为准。
