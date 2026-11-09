@@ -10,7 +10,7 @@
 | npm test | 97通过，1项既有性能benchmark默认跳过 |
 | npm run check:rust / format:rust / lint:rust | 通过，Clippy --all-targets -D warnings |
 | npm run test:rust | 101通过，1项worker fixture按原规则ignored；main/doc tests无失败 |
-| scripts/test-queue.ps1 | 显式worker fixture通过，4.83秒；不写默认dev-logs |
+| scripts/test-queue.ps1 | 最终完整发布重跑显式worker fixture通过，5.17秒；不写默认dev-logs |
 | npm run test:diagnostics | 24项相关unit通过，加5次/组生产管线fixture、异常场景、30,000事件查询测试通过 |
 | npm run benchmark:diagnostics | 20次/组，实际n/p50/p95/max及writer开关对照；细节见performance-analysis.md |
 | npm run test:release | 34通过，0失败，不改发布策略 |
@@ -20,7 +20,7 @@
 | scripts/native-desktop-smoke.mjs | 14通过、0失败、1未测，脚本以partial/exit1如实报告；具体见下文 |
 | npm run test:styles | 12项既有组件CSS等值通过；新增诊断导航不在旧CSS基线内，明确从两张比较图DOM移除，新增诊断UI由实际桌面深浅主题单独验收 |
 
-本轮正式release构建与最终Git/产物状态在收尾发布后补记；上表不把此前release-output的旧包当成本轮程序。
+本轮正式`npm run release:build`已成功，完整重跑类型/lint/格式、97前端、101 Rust、34发布测试和显式worker fixture，再生成真实Release EXE及NSIS。正常MSVC linker输出一条创建导入库的提示，编译与严格Clippy均成功。新增诊断专项24项及20次基准在此前最终源码上已通过，未为文档重复业务测试。
 
 ## 逐项功能验收
 
@@ -33,7 +33,7 @@
 | 实际日志目录、自动报告 | 正常debug真实创建工程根dev-logs；运行中、主动refresh和退出保留、重新启动跨session查询均实际验证 |
 | 导出及定位 | 真实Rust原生save dialog由明确用户操作触发；本轮自有helper确认，生成6条目ZIP，Python独立CRC/JSON/虚构敏感值检查；Explorer目录打开及本次ZIP选中均由系统Shell窗口实际核对 |
 | 双窗与权限 | 重启后两个WebView可查旧Trace；Quick对目录/导出commands被拒，原capabilities完全不变 |
-| 真实状态与缺失进度 | TaskDiagnosticStatus只从事件描述阶段；fixture无进度时不填耗时，后处理没有信号是不适用；取消/完成与旧attempt准入沿用原99项Rust及worker保护 |
+| 真实状态与缺失进度 | TaskDiagnosticStatus只从事件描述阶段；fixture无进度时不填耗时，后处理没有信号是不适用；取消/完成与旧attempt准入由当前状态机/attempt与worker回归保护 |
 
 ## 可靠性、安全与查询优化
 
@@ -54,3 +54,13 @@
 Windows10、真实多屏/125%及150%系统DPI、完整NSIS安装卸载、发行EXE直接运行、外网YouTube/站点测量、远程CI未新增验证。真实媒体联调使用用户已有yt-dlp 2026.07.04与原创loopback HTTP素材，不静默下载引擎、不改证书/代理、不以一次网络结果声称加速。正式路径由Release编译分支的Tauri app_log_dir取得，不能用debug路径测试假称正式运行已验证。
 
 后续复现：Windows隔离测试系统执行README和docs/diagnostics.md命令；性能前后保持同媒体/引擎/网络/缓存条件。源码/文档可提交，dev-logs、所有真实报告/事件、数据库、媒体、诊断ZIP和发行物不得推送。
+
+## 最终本地产物与Git交付
+
+实现提交`dcc3c55df84a157a7f5e6f6f9224755a0494b956`，由干净工作树实际构建，版本仍0.2.0。来源收据保留真实代码提交及指纹，随后收尾文档/记忆提交不回写构建来源。完整源/产物指纹见[净化发布验收](diagnostics-release.json)。本轮未改变发布脚本、安全策略、依赖锁或Tauri capabilities。
+
+最终输出`release-output/FluxDL/`与`release-output/FluxDL.zip`；目录489文件，Node完整清单/CRC/SHA256校验通过，另用Python独立`testzip()`及逐条解压字节SHA256对照489文件全部通过。EXE 10,655,232B，NSIS 3,147,373B，ZIP 8,262,204B。实查目录及ZIP没有dev-logs、JSONL、日志、数据库、诊断ZIP；不是仅凭ignore规则推断。原release目录不覆盖，旧用户实例与原Vite的PID/创建时间均保持一致。
+
+最终原生诊断证据在本机ignored `artifacts/diagnostics/desktop-1794224404980/report.json`：19通过、errors空，真实引擎版本2026.07.04、FFmpeg/FFprobe 8.0.1，ZIP独立CRC及Explorer选中实际通过。最终生产管线基准20次/组，文件writer健康、dropped与critical_dropped均0；提交的聚合JSON只保留阶段与数字，删除Trace/Task/Session ID及原始文本。真实五次阶段数据已同步performance-analysis.md并注明样本不足。
+
+`desktop:dev`实际隔离数据/profile启动、复用原Vite、显示工作台并正常退出0、前端无错误，前后release-output全部哈希不变。该测试不是发行EXE直接运行。最终Git遵循根AGENTS持续授权，推送main后核对实际远端SHA；不创建GitHub Release。运行事件/报告、诊断包、媒体、SQLite和发行二进制保持ignored，不上传；这里的聚合性能/发布指纹不包含本机业务数据。

@@ -5,7 +5,7 @@
 - 沟通、工程说明和交付使用简体中文。产品需求以 `prompt/FluxDL_Codex_MVP_Prompt.md` 为基线；实现以当前源码和配置为准。
 - Windows-first，React / TypeScript / Vite + Tauri 2 / Rust。真实下载、队列、进度与持久化由 Rust 管理；浏览器只作界面预览。
 - 修改前检查 `git status --short --branch`、当前 HEAD 与实际远程分支，保留用户和其他任务的改动。
-- 按修改范围执行必要检查：前端 `npm run typecheck`、`npm run lint`、`npm run format:check`、`npm test`；后端 `npm run check:rust`、`npm run format:rust`、`npm run lint:rust`、`npm run test:rust`；队列生命周期使用 `./scripts/test-queue.ps1`。仅改记忆或文档时检查相关引用和记忆，不为记忆重跑业务测试。当前验证边界见 `docs/engineering/0.2.0-validation-report.md`，`docs/validation.md`保留0.1历史。
+- 按修改范围执行必要检查：前端 `npm run typecheck`、`npm run lint`、`npm run format:check`、`npm test`；后端 `npm run check:rust`、`npm run format:rust`、`npm run lint:rust`、`npm run test:rust`；队列生命周期使用 `./scripts/test-queue.ps1`。仅改记忆或文档时检查相关引用和记忆，不为记忆重跑业务测试。当前诊断迭代验证见 `docs/engineering/diagnostics-validation.md`；`0.2.0-validation-report.md`与`docs/validation.md`保留历史范围。
 
 ## Git 交付：持续授权
 

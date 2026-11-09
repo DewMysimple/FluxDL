@@ -128,7 +128,7 @@ Workspace侧栏底部「诊断中心」提供概览、性能、事件、异常�
 - `src-tauri/src/manager.rs` / `transitions.rs` / `events.rs`：队列协调、合法状态转换、有序增量事件。
 - `src-tauri/src/persistence/` / `errors.rs` / `diagnostics/`：增量SQLite、稳定错误与日志脱敏。
 - `src-tauri/tauri.conf.json` / `capabilities/desktop.json`：安装包、安全策略与权限。
-- `docs/engine.md` / `docs/engineering/0.2.0-architecture.md` / `0.2.0-validation-report.md`：引擎、架构和本轮实际验证；`docs/validation.md`保留0.1历史。
+- `docs/engine.md` / `docs/engineering/observability-design.md` / `diagnostics-validation.md`：引擎、诊断架构和本轮实际验证；`0.2.0-architecture.md`、`0.2.0-validation-report.md`与`docs/validation.md`保留历史。
 - `LICENSE` / `THIRD_PARTY_NOTICES.md` / `licenses/`：MIT 项目许可、第三方声明与原文。
 
 工程仓库：[DewMysimple/FluxDL](https://github.com/DewMysimple/FluxDL)。工程记忆使用 standard 模式，入口是 [wiki_memory/README.md](wiki_memory/README.md)，协作与持续提交推送规则见 [AGENTS.md](AGENTS.md)。
