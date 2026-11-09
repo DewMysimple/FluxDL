@@ -13,3 +13,10 @@ tools/
 # Local final delivery and owned publication transactions
 /release-output/
 /.fluxdl-release-work/
+
+# Private local diagnostics: never commit runtime evidence or exported bundles
+/dev-logs/
+FluxDL-Diagnostics-*.zip
+# Native export allows a user-chosen filename; all archives and event streams stay local.
+*.[zZ][iI][pP]
+*.jsonl

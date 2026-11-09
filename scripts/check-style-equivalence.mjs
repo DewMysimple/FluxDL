@@ -55,7 +55,8 @@ const report = {
   schemaVersion: 1, runId, baselineRef, baselineCommit, baselineFiles,
   baselineCssSha256: createHash('sha256').update(css).digest('hex'),
   method: 'Same current DOM with current styles versus baseline-ref styles; PNG bytes compared with animations and caret disabled',
-  scope: 'CSS extraction only; empty browser preview; not an original-DOM, native Tauri, DPI or download regression test',
+  scope: '既有组件CSS等值；明确移除旧基线没有的新增诊断导航。新增诊断UI由原生smoke单独验收；不证明原生DPI或下载行为。',
+  excludedSelectors: ['.diagnostic-nav'],
   environment: { node: process.version, platform: process.platform, browser: null, browserSource: executablePath ? 'selected/system executable, fresh headless profile' : 'Playwright bundled Chromium, fresh headless profile' },
   checks: [], errors: [],
 };
@@ -78,6 +79,10 @@ try {
       if (quick) await page.locator('.quick-shell').waitFor();
       else await page.getByRole('heading', { name: /^下载工作台/ }).waitFor();
       if (['queue', 'history', 'settings'].includes(view)) await page.getByRole('button', { name: view === 'queue' ? /^下载队列/ : view === 'history' ? '下载历史' : '设置', exact: view !== 'queue' }).click();
+      // The historical stylesheet has no contract for the new navigation item.
+      // Remove only that additive DOM from both captures; keep all existing
+      // selectors and current CSS so unrelated visual regressions still fail.
+      await page.locator('.diagnostic-nav').evaluateAll(elements => elements.forEach(element => element.remove()));
       await page.evaluate(theme => { document.documentElement.dataset.theme = theme; }, theme);
       await page.addStyleTag({ content: freeze });
       await page.evaluate(() => document.fonts.ready);

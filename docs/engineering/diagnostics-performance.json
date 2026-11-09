@@ -1,0 +1,470 @@
+{
+  "schema_version": 1,
+  "environment": {
+    "os": "Windows 11 x64",
+    "node": "24.16.0",
+    "rust": "1.97.0 MSVC",
+    "app": "0.2.0",
+    "real_engine": "2026.07.04",
+    "real_network": "原创本地HTTP素材，无代理配置；非互联网性能结论"
+  },
+  "fixture": {
+    "synthetic": true,
+    "samples_per_mode": 20,
+    "parse_delay_ms": 60,
+    "first_progress_delay_ms": 100,
+    "results": [
+      {
+        "file_writer_enabled": false,
+        "health": {
+          "critical_dropped": 0,
+          "dropped": 0,
+          "write_restricted": false
+        },
+        "independent_parse": {
+          "max_ms": 82.16959999999999,
+          "p50_ms": 73.5779,
+          "p95_ms": 80.35470000000001,
+          "samples": 20
+        },
+        "independent_enqueue": {
+          "max_ms": 78.8451,
+          "p50_ms": 75.2419,
+          "p95_ms": 78.0335,
+          "samples": 20
+        },
+        "statistics": [
+          {
+            "maxMs": 210.4617,
+            "p50Ms": 197.6185,
+            "p95Ms": 206.9328,
+            "phase": "download_total",
+            "samples": 20
+          },
+          {
+            "maxMs": 203.39860000000002,
+            "p50Ms": 190.52640000000002,
+            "p95Ms": 199.2342,
+            "phase": "enqueue_to_progress",
+            "samples": 20
+          },
+          {
+            "maxMs": 123.5403,
+            "p50Ms": 109.9865,
+            "p95Ms": 119.6977,
+            "phase": "download_first_progress",
+            "samples": 20
+          },
+          {
+            "maxMs": 84.803,
+            "p50Ms": 82.574,
+            "p95Ms": 83.12129999999999,
+            "phase": "download_active",
+            "samples": 20
+          },
+          {
+            "maxMs": 82.1477,
+            "p50Ms": 73.5589,
+            "p95Ms": 80.3359,
+            "phase": "parse_total",
+            "samples": 20
+          },
+          {
+            "maxMs": 79.606,
+            "p50Ms": 70.80019999999999,
+            "p95Ms": 77.769,
+            "phase": "parse_metadata_extract",
+            "samples": 20
+          },
+          {
+            "maxMs": 76.18690000000001,
+            "p50Ms": 72.577,
+            "p95Ms": 74.5281,
+            "phase": "enqueue_metadata_recheck",
+            "samples": 20
+          },
+          {
+            "maxMs": 6.1289,
+            "p50Ms": 2.3598,
+            "p95Ms": 3.3585,
+            "phase": "parse_engine_spawn",
+            "samples": 20
+          },
+          {
+            "maxMs": 4.4341,
+            "p50Ms": 2.404,
+            "p95Ms": 3.0393,
+            "phase": "download_engine_spawn",
+            "samples": 20
+          },
+          {
+            "maxMs": 3.7,
+            "p50Ms": 2.3038999999999996,
+            "p95Ms": 2.983,
+            "phase": "enqueue_persist",
+            "samples": 20
+          },
+          {
+            "maxMs": 3.5119000000000002,
+            "p50Ms": 2.1277000000000004,
+            "p95Ms": 2.8022,
+            "phase": "enqueue_db_write",
+            "samples": 20
+          },
+          {
+            "maxMs": 2.7289,
+            "p50Ms": 2.2062000000000004,
+            "p95Ms": 2.7101,
+            "phase": "download_terminal",
+            "samples": 20
+          },
+          {
+            "maxMs": 2.7639,
+            "p50Ms": 2.0817,
+            "p95Ms": 2.3038,
+            "phase": "queue_wait",
+            "samples": 20
+          },
+          {
+            "maxMs": 0.159,
+            "p50Ms": 0.0275,
+            "p95Ms": 0.050800000000000005,
+            "phase": "enqueue_db_queue",
+            "samples": 20
+          },
+          {
+            "maxMs": 0.0673,
+            "p50Ms": 0.0331,
+            "p95Ms": 0.0386,
+            "phase": "parse_validate",
+            "samples": 20
+          },
+          {
+            "maxMs": 0.0453,
+            "p50Ms": 0.0257,
+            "p95Ms": 0.037700000000000004,
+            "phase": "parse_response",
+            "samples": 20
+          },
+          {
+            "maxMs": 0.0287,
+            "p50Ms": 0.0092,
+            "p95Ms": 0.0168,
+            "phase": "parse_ipc_dispatch",
+            "samples": 20
+          },
+          {
+            "maxMs": 0.0095,
+            "p50Ms": 0.0084,
+            "p95Ms": 0.0095,
+            "phase": "enqueue_validate",
+            "samples": 20
+          }
+        ]
+      },
+      {
+        "file_writer_enabled": true,
+        "health": {
+          "critical_dropped": 0,
+          "dropped": 0,
+          "write_restricted": false
+        },
+        "independent_parse": {
+          "max_ms": 84.9345,
+          "p50_ms": 72.1053,
+          "p95_ms": 82.0824,
+          "samples": 20
+        },
+        "independent_enqueue": {
+          "max_ms": 93.9262,
+          "p50_ms": 75.6732,
+          "p95_ms": 88.2324,
+          "samples": 20
+        },
+        "statistics": [
+          {
+            "maxMs": 234.1872,
+            "p50Ms": 190.945,
+            "p95Ms": 208.466,
+            "phase": "enqueue_to_progress",
+            "samples": 20
+          },
+          {
+            "maxMs": 242.1585,
+            "p50Ms": 198.4099,
+            "p95Ms": 205.8277,
+            "phase": "download_total",
+            "samples": 20
+          },
+          {
+            "maxMs": 154.8941,
+            "p50Ms": 109.9548,
+            "p95Ms": 116.0922,
+            "phase": "download_first_progress",
+            "samples": 20
+          },
+          {
+            "maxMs": 91.1885,
+            "p50Ms": 72.5408,
+            "p95Ms": 85.7097,
+            "phase": "enqueue_metadata_recheck",
+            "samples": 20
+          },
+          {
+            "maxMs": 83.5753,
+            "p50Ms": 82.65169999999999,
+            "p95Ms": 83.4786,
+            "phase": "download_active",
+            "samples": 20
+          },
+          {
+            "maxMs": 84.9183,
+            "p50Ms": 72.0894,
+            "p95Ms": 82.0657,
+            "phase": "parse_total",
+            "samples": 20
+          },
+          {
+            "maxMs": 83.4717,
+            "p50Ms": 70.6196,
+            "p95Ms": 80.6514,
+            "phase": "parse_metadata_extract",
+            "samples": 20
+          },
+          {
+            "maxMs": 4.0316,
+            "p50Ms": 2.3861,
+            "p95Ms": 4.003900000000001,
+            "phase": "download_engine_spawn",
+            "samples": 20
+          },
+          {
+            "maxMs": 3.5972,
+            "p50Ms": 2.1229,
+            "p95Ms": 3.3912,
+            "phase": "queue_wait",
+            "samples": 20
+          },
+          {
+            "maxMs": 3.9111,
+            "p50Ms": 2.3836,
+            "p95Ms": 3.3249,
+            "phase": "download_terminal",
+            "samples": 20
+          },
+          {
+            "maxMs": 3.057,
+            "p50Ms": 2.2791,
+            "p95Ms": 2.5241,
+            "phase": "enqueue_persist",
+            "samples": 20
+          },
+          {
+            "maxMs": 2.8673,
+            "p50Ms": 2.0799999999999996,
+            "p95Ms": 2.3106,
+            "phase": "enqueue_db_write",
+            "samples": 20
+          },
+          {
+            "maxMs": 1.6417000000000002,
+            "p50Ms": 1.2195,
+            "p95Ms": 1.3864999999999998,
+            "phase": "parse_engine_spawn",
+            "samples": 20
+          },
+          {
+            "maxMs": 0.0862,
+            "p50Ms": 0.0313,
+            "p95Ms": 0.0477,
+            "phase": "enqueue_db_queue",
+            "samples": 20
+          },
+          {
+            "maxMs": 0.0619,
+            "p50Ms": 0.0327,
+            "p95Ms": 0.0423,
+            "phase": "parse_validate",
+            "samples": 20
+          },
+          {
+            "maxMs": 0.0309,
+            "p50Ms": 0.0247,
+            "p95Ms": 0.0303,
+            "phase": "parse_response",
+            "samples": 20
+          },
+          {
+            "maxMs": 0.0134,
+            "p50Ms": 0.0091,
+            "p95Ms": 0.0131,
+            "phase": "parse_ipc_dispatch",
+            "samples": 20
+          },
+          {
+            "maxMs": 0.0097,
+            "p50Ms": 0.0086,
+            "p95Ms": 0.0091,
+            "phase": "enqueue_validate",
+            "samples": 20
+          }
+        ]
+      }
+    ]
+  },
+  "real_engine": {
+    "synthetic": false,
+    "repetitions": 5,
+    "sample_note": "样本不足；单机5次经验分位数，不能代表总体p95",
+    "statistics": [
+      {
+        "phase": "enqueue_to_progress",
+        "samples": 5,
+        "p50Ms": 2113.3731,
+        "p95Ms": 2147.5932000000003,
+        "maxMs": 2147.5932000000003
+      },
+      {
+        "phase": "enqueue_ui_request",
+        "samples": 1,
+        "p50Ms": 1257.89999999851,
+        "p95Ms": 1257.89999999851,
+        "maxMs": 1257.89999999851
+      },
+      {
+        "phase": "enqueue_metadata_recheck",
+        "samples": 5,
+        "p50Ms": 1242.1786,
+        "p95Ms": 1253.8893,
+        "maxMs": 1253.8893
+      },
+      {
+        "phase": "parse_total",
+        "samples": 5,
+        "p50Ms": 1241.82,
+        "p95Ms": 1245.9537,
+        "maxMs": 1245.9537
+      },
+      {
+        "phase": "parse_metadata_extract",
+        "samples": 5,
+        "p50Ms": 1239.2807,
+        "p95Ms": 1243.3919,
+        "maxMs": 1243.3919
+      },
+      {
+        "phase": "download_total",
+        "samples": 5,
+        "p50Ms": 1227.8766,
+        "p95Ms": 1241.997,
+        "maxMs": 1241.997
+      },
+      {
+        "phase": "parse_ui_request",
+        "samples": 1,
+        "p50Ms": 1241.39999999851,
+        "p95Ms": 1241.39999999851,
+        "maxMs": 1241.39999999851
+      },
+      {
+        "phase": "download_first_progress",
+        "samples": 5,
+        "p50Ms": 859.4541999999999,
+        "p95Ms": 883.477,
+        "maxMs": 883.477
+      },
+      {
+        "phase": "download_postprocess",
+        "samples": 5,
+        "p50Ms": 362.5661,
+        "p95Ms": 369.9904,
+        "maxMs": 369.9904
+      },
+      {
+        "phase": "download_active",
+        "samples": 5,
+        "p50Ms": 9.452,
+        "p95Ms": 17.3355,
+        "maxMs": 17.3355
+      },
+      {
+        "phase": "download_engine_spawn",
+        "samples": 5,
+        "p50Ms": 4.5485,
+        "p95Ms": 6.793699999999999,
+        "maxMs": 6.793699999999999
+      },
+      {
+        "phase": "queue_wait",
+        "samples": 5,
+        "p50Ms": 3.8976,
+        "p95Ms": 4.2101999999999995,
+        "maxMs": 4.2101999999999995
+      },
+      {
+        "phase": "parse_engine_spawn",
+        "samples": 5,
+        "p50Ms": 2.5286000000000004,
+        "p95Ms": 3.635,
+        "maxMs": 3.635
+      },
+      {
+        "phase": "download_terminal",
+        "samples": 5,
+        "p50Ms": 2.2242,
+        "p95Ms": 2.3227,
+        "maxMs": 2.3227
+      },
+      {
+        "phase": "enqueue_persist",
+        "samples": 5,
+        "p50Ms": 2.1696,
+        "p95Ms": 2.2046,
+        "maxMs": 2.2046
+      },
+      {
+        "phase": "enqueue_db_write",
+        "samples": 5,
+        "p50Ms": 1.965,
+        "p95Ms": 1.9989,
+        "maxMs": 1.9989
+      },
+      {
+        "phase": "parse_response",
+        "samples": 5,
+        "p50Ms": 0.0376,
+        "p95Ms": 0.054200000000000005,
+        "maxMs": 0.054200000000000005
+      },
+      {
+        "phase": "parse_validate",
+        "samples": 5,
+        "p50Ms": 0.039,
+        "p95Ms": 0.0496,
+        "maxMs": 0.0496
+      },
+      {
+        "phase": "enqueue_db_queue",
+        "samples": 5,
+        "p50Ms": 0.0292,
+        "p95Ms": 0.0375,
+        "maxMs": 0.0375
+      },
+      {
+        "phase": "enqueue_validate",
+        "samples": 5,
+        "p50Ms": 0.009000000000000001,
+        "p95Ms": 0.0255,
+        "maxMs": 0.0255
+      },
+      {
+        "phase": "parse_ipc_dispatch",
+        "samples": 5,
+        "p50Ms": 0.014,
+        "p95Ms": 0.017900000000000003,
+        "maxMs": 0.017900000000000003
+      }
+    ]
+  },
+  "privacy": "仅净化聚合统计；没有事件、Trace/Task ID、媒体URL/标题、私有路径、数据库或原始引擎输出。"
+}

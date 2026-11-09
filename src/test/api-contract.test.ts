@@ -32,7 +32,21 @@ describe("real centralized invoke wrapper negotiation", () => {
       ["detect_engines", { errorFormat: "structured" }],
       [
         "probe_media",
-        { url: "https://example.org/video.mp4", errorFormat: "structured" },
+        {
+          url: "https://example.org/video.mp4",
+          traceId: expect.any(String),
+          errorFormat: "structured",
+        },
+      ],
+      [
+        "record_frontend_diagnostic",
+        {
+          traceId: expect.any(String),
+          phase: "parse_ui_request",
+          durationMs: expect.any(Number),
+          success: true,
+          errorFormat: "structured",
+        },
       ],
       ["cancel_task", { taskId: "task-1", errorFormat: "structured" }],
     ]);
@@ -77,7 +91,10 @@ describe("real centralized invoke wrapper negotiation", () => {
       message: "请检查网络",
       details: "diagnostic",
     };
-    ipc.invoke.mockRejectedValueOnce(dto).mockRejectedValueOnce("旧后端错误");
+    ipc.invoke
+      .mockRejectedValueOnce(dto)
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce("旧后端错误");
     await expect(api.probe("https://example.org/video.mp4")).rejects.toBe(dto);
     await expect(api.probe("https://example.org/video.mp4")).rejects.toBe(
       "旧后端错误",

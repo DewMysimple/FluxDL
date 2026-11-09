@@ -12,6 +12,7 @@ export function QuickCaptureWindow() {
   useAppSync();
   const [media, setMedia] = useState<MediaInfo | null>(null);
   const [added, setAdded] = useState(false);
+  const [taskId, setTaskId] = useState("");
   const notify = useApp((s) => s.notify);
   const shell = useRef<HTMLDivElement>(null);
   const result = useRef<HTMLDivElement>(null);
@@ -85,7 +86,8 @@ export function QuickCaptureWindow() {
             <MediaOptions
               key={media.url}
               media={media}
-              onAdded={() => {
+              onAdded={(id) => {
+                setTaskId(id ?? "");
                 setAdded(true);
                 result.current?.scrollTo({ top: 0, behavior: "instant" });
               }}
@@ -94,6 +96,14 @@ export function QuickCaptureWindow() {
         )}
       </div>
       <div className="quick-footer">
+        {taskId && (
+          <button
+            className="text-button"
+            onClick={() => void api.locateDiagnostics(taskId).catch(notify)}
+          >
+            查看任务诊断
+          </button>
+        )}
         <span>
           <kbd>Esc</kbd> 收起浮窗 · 下载将在后台继续
         </span>

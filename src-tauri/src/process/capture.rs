@@ -77,9 +77,31 @@ pub async fn capture(
     stderr_limit: usize,
     phase: ErrorPhase,
 ) -> AppResult<CaptureOutput> {
+    capture_traced(path, args, timeout, stdout_limit, stderr_limit, phase, None).await
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn capture_traced(
+    path: PathBuf,
+    args: Vec<String>,
+    timeout: Duration,
+    stdout_limit: usize,
+    stderr_limit: usize,
+    phase: ErrorPhase,
+    trace: Option<crate::diagnostics::Trace>,
+) -> AppResult<CaptureOutput> {
     // The owning task survives cancellation of a probe/IPC waiter and always reaps its child.
     tokio::spawn(async move {
-        capture_owned(path, args, timeout, stdout_limit, stderr_limit, phase).await
+        capture_owned(
+            path,
+            args,
+            timeout,
+            stdout_limit,
+            stderr_limit,
+            phase,
+            trace,
+        )
+        .await
     })
     .await
     .map_err(|error| {
@@ -88,6 +110,7 @@ pub async fn capture(
     })?
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn capture_owned(
     path: PathBuf,
     args: Vec<String>,
@@ -95,8 +118,13 @@ async fn capture_owned(
     stdout_limit: usize,
     stderr_limit: usize,
     phase: ErrorPhase,
+    trace: Option<crate::diagnostics::Trace>,
 ) -> AppResult<CaptureOutput> {
-    let mut child = hidden_command(path)
+    use crate::diagnostics::Stage;
+    if let Some(t) = &trace {
+        t.begin(Stage::ParseEngineSpawn);
+    }
+    let spawned = hidden_command(path)
         .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -108,7 +136,14 @@ async fn capture_owned(
                 "无法运行引擎，请检查所选文件与权限。",
             )
             .with_details(error.to_string())
-        })?;
+        });
+    if let Some(t) = &trace {
+        t.result(Stage::ParseEngineSpawn, &spawned);
+    }
+    let mut child = spawned?;
+    if let Some(t) = &trace {
+        t.begin(Stage::ParseMetadataExtract);
+    }
     #[cfg(windows)]
     let mut job = match crate::process_job::ProcessJob::assign(&child) {
         Ok(job) => Some(job),

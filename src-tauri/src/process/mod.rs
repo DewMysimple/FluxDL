@@ -2,8 +2,11 @@
 mod capture;
 mod download;
 mod lines;
-pub use capture::{capture, CaptureOutput};
-pub use download::{start_download, Cancellation, DownloadHandle, ProcessOutcome, ProcessSpec};
+pub use capture::{capture, capture_traced, CaptureOutput};
+pub use download::{
+    start_download, start_download_traced, Cancellation, DownloadHandle, ProcessOutcome,
+    ProcessSpec,
+};
 pub use lines::{OutputLine, OutputStream, ProcessEvent};
 
 use crate::errors::{AppError, AppResult, ErrorCode, ErrorPhase};

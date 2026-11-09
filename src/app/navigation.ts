@@ -1,6 +1,6 @@
 import { History, LayoutDashboard, ListVideo, Settings2 } from "lucide-react";
 
-export type Page = "home" | "queue" | "history" | "settings";
+export type Page = "home" | "queue" | "history" | "settings" | "diagnostics";
 
 export const pages = [
   { id: "home" as const, label: "工作台", icon: LayoutDashboard },

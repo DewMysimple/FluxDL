@@ -286,7 +286,12 @@ fn benchmark(
     runtime.block_on(writer.close())?;
     drop(writer);
     // This is the actual production explicit refresh path, outside repository loading.
-    let manager = runtime.block_on(Manager::init(directory.clone(), None, None))?;
+    let manager = runtime.block_on(Manager::init_with_diagnostics(
+        directory.clone(),
+        None,
+        None,
+        fluxdl_lib::diagnostics::Diagnostics::disabled(),
+    ))?;
     let explicit_snapshot_refresh = measure(
         || {
             let snapshot = runtime.block_on(manager.snapshot());

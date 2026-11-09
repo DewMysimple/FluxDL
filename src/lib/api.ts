@@ -43,7 +43,7 @@ export const previewSnapshot: AppSnapshot = {
   },
   tasks: [],
 };
-async function call<T>(
+export async function call<T>(
   name: string,
   args?: Record<string, unknown>,
 ): Promise<T> {
@@ -53,15 +53,48 @@ async function call<T>(
     );
   return invoke<T>(name, { ...args, errorFormat: "structured" });
 }
+const parseTraces = new WeakMap<object, string>();
+async function measured<T>(
+  name: string,
+  args: Record<string, unknown>,
+  phase: string,
+  onTrace?: (id: string) => void,
+): Promise<T> {
+  const traceId = crypto.randomUUID();
+  onTrace?.(traceId);
+  const start = performance.now();
+  let success = false;
+  try {
+    const result = await call<T>(name, { ...args, traceId });
+    if (name === "probe_media" && result !== null && typeof result === "object")
+      parseTraces.set(result, traceId);
+    success = true;
+    return result;
+  } finally {
+    if (isDesktop)
+      void call("record_frontend_diagnostic", {
+        traceId,
+        phase,
+        durationMs: performance.now() - start,
+        success,
+      }).catch(() => {});
+  }
+}
 export const api = {
   snapshot: () =>
     isDesktop
       ? call<AppSnapshot>("get_app_state")
       : Promise.resolve(previewSnapshot),
   detect: () => call<EngineDiagnostics>("detect_engines"),
-  probe: (url: string) => call<MediaInfo>("probe_media", { url }),
-  enqueue: (input: EnqueueInput) =>
-    call<DownloadTask>("enqueue_download", { input }),
+  probe: (url: string) =>
+    measured<MediaInfo>("probe_media", { url }, "parse_ui_request"),
+  enqueue: (input: EnqueueInput, onTrace?: (id: string) => void) =>
+    measured<DownloadTask>(
+      "enqueue_download",
+      { input, relatedTraceId: parseTraces.get(input.media) ?? null },
+      "enqueue_ui_request",
+      onTrace,
+    ),
   cancel: (taskId: string) => call<void>("cancel_task", { taskId }),
   retry: (taskId: string) => call<void>("retry_task", { taskId }),
   remove: (taskId: string) => call<void>("remove_history_record", { taskId }),
@@ -73,6 +106,10 @@ export const api = {
     call<TaskDetailsResult>("get_task_details", { taskId }),
   quick: () => call<void>("show_quick_capture"),
   workspace: () => call<void>("show_workspace"),
+  locateDiagnostics: (taskId: string) =>
+    call<void>("show_task_diagnostics", { taskId }),
+  onDiagnosticsTask: (fn: (taskId: string) => void) =>
+    listen<string>("diagnostics-locate-task", (e) => fn(e.payload)),
   hideQuick: () => call<void>("hide_quick_capture"),
   resizeQuick: (height: number) => call<void>("resize_quick", { height }),
   exit: () => call<void>("request_exit"),

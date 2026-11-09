@@ -84,13 +84,21 @@ node scripts/desktop-smoke.mjs 'E:\VedioDownload\yt-dlp.exe'
 ## 数据、隐私与安全
 
 - Rust 管理 SQLite，位置为系统 AppData 下 `io.fluxdl.desktop/fluxdl.sqlite3`（Windows 通常在 `%APPDATA%`）。任务来源链接和保存位置只在本机保存，不上传。分享诊断前仍应自行检查内容。
-- 引擎日志移除URL凭据/query、Cookie及认证Header等敏感值，最多100行，每行1600字符；两路输出持续消费，单行内存有上限。
+- 新引擎技术日志只保存固定安全摘要，错误保留类别和实际退出码；不保存原始stderr、URL、媒体标题或文件路径。每任务最多100行，每行1600字符；两路输出持续消费，单行内存有上限。
 - 普通进度约4Hz增量推送、约2秒合并保存；创建、取消、重试、完成等关键变化在SQLite确认后公开。两个窗口按session/revision校验事件，缺口由完整快照恢复；低频checkpoint可发现丢失的最后终态。没有随机进度或前端定时伪造。
 - SQLite采用独立连接线程和按记录增量事务，主任务锁不等待SQL。v1旧库事务升级，未知字段/不可理解行保留并诊断；未来或不兼容schema拒绝，只有确认物理损坏才先备份后重建。重启将所有可理解非终态任务（含等待中）标为「已中断」，由用户主动重试；写入未确认不会假报完成。
 - URL、预设、格式和目录均在 Rust 再次校验；使用可执行文件加参数数组，不拼接 shell。加入队列会再次解析，防止前端伪造格式元数据。
 - Windows 下载与解析子进程使用受控进程生命周期；取消下载会终止整个 Windows Job。Linux/macOS 没有做完整验收，子进程树保证仅针对 Windows。
 - 两窗口只获得事件、拖动和原生文件选择权限；前端没有通用 shell 或文件系统接口。文件打开仅对已完成记录、安全目录内存在的媒体文件执行。
 - 缩略图请求来自媒体来源，可能向该站点暴露网络请求；加载失败有占位。无远程字体。
+
+## 诊断中心与本地日志
+
+Workspace侧栏底部「诊断中心」提供概览、性能、事件、异常；任务详情和Quick Capture加入任务后可跳转对应Trace。阶段来自真实Rust操作，成功样本显示n/p50/p95；用户选择格式的停留、串行排队、引擎及网络等待分开解释，不补造首次进度或缺失耗时。
+
+开发日志位于工程根`dev-logs/latest-report.md`和`sessions/*.jsonl`；正式版通过Tauri app_log_dir写系统应用日志目录，Windows通常为`%LOCALAPPDATA%\io.fluxdl.desktop\logs\`。软件内可查看实际位置并打开Explorer、刷新报告、预览后手动导出安全ZIP，再定位文件。没有自动上传。默认固定info/warn/error白名单阶段，没有原始stderr或更详细日志开关。
+
+本地Codex先读latest-report.md，再按Trace查JSONL和源码；远程Codex不会自动获得本机日志。默认10MiB×5文件、7天保留，有界内存/写入队列，写入失败显示受限状态且下载继续。日志、诊断ZIP与测试资料被Git忽略，不进入发行包。详情、复现命令与隐私边界见[诊断使用说明](docs/diagnostics.md)、[设计](docs/engineering/observability-design.md)及[实际验收](docs/engineering/diagnostics-validation.md)。
 
 ## 故障排除与边界
 
@@ -118,7 +126,7 @@ node scripts/desktop-smoke.mjs 'E:\VedioDownload\yt-dlp.exe'
 - `src-tauri/src/lib.rs` / `commands.rs` / `windows.rs`：装配、受控命令、真实双窗口、托盘与退出。
 - `src-tauri/src/engine/` / `process/`：引擎探测/解析/参数/进度与真实子进程所有权。
 - `src-tauri/src/manager.rs` / `transitions.rs` / `events.rs`：队列协调、合法状态转换、有序增量事件。
-- `src-tauri/src/persistence/` / `errors.rs` / `diagnostics.rs`：增量SQLite、稳定错误与日志脱敏。
+- `src-tauri/src/persistence/` / `errors.rs` / `diagnostics/`：增量SQLite、稳定错误与日志脱敏。
 - `src-tauri/tauri.conf.json` / `capabilities/desktop.json`：安装包、安全策略与权限。
 - `docs/engine.md` / `docs/engineering/0.2.0-architecture.md` / `0.2.0-validation-report.md`：引擎、架构和本轮实际验证；`docs/validation.md`保留0.1历史。
 - `LICENSE` / `THIRD_PARTY_NOTICES.md` / `licenses/`：MIT 项目许可、第三方声明与原文。

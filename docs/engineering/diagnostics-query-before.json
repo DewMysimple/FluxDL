@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "synthetic": true,
+  "cache_enabled": false,
+  "analysis_limit": 20000,
+  "generated_events": 30000,
+  "ipc_packet_bytes": 54292,
+  "note": "synthetic stored events test I/O/pagination only, excluded from media stage statistics",
+  "page_size": 100,
+  "query_samples_ms": [
+    626.1316,
+    640.2402000000001,
+    643.8137
+  ]
+}

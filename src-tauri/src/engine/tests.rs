@@ -234,7 +234,7 @@ fn redacts_private_url_queries() {
     let line = redact_log("ERROR https://user:pass@example.com/video?token=secret#password failed");
     assert!(!line.contains("secret"));
     assert!(!line.contains("pass"));
-    assert!(line.contains("example.com/video"));
+    assert!(!line.contains("example.com/video"));
 }
 #[test]
 fn metadata_warnings_and_friendly_errors_share_http_credential_redaction() {
@@ -261,9 +261,20 @@ fn metadata_warnings_and_friendly_errors_share_http_credential_redaction() {
     ] {
         assert!(!public.contains(secret), "leaked {secret}");
     }
-    assert!(public.contains("example.com/video"));
-    assert!(public.contains("cdn.example.com/file"));
+    assert!(!public.contains("example.com/video"));
+    assert!(!public.contains("cdn.example.com/file"));
     assert!(public.contains("网络"));
+}
+#[test]
+fn source_error_kind_is_stable_without_retaining_private_stderr() {
+    let e = process_failure(
+        ErrorPhase::Download,
+        "ERROR: network unavailable PRIVATE_TITLE https://example.test/private?sig=PRIVATE_SIG",
+        Some(9),
+    );
+    assert_eq!(e.kind, Some(crate::errors::ErrorKind::Network));
+    assert!(!e.safe_text().contains("PRIVATE_"));
+    assert!(e.safe_text().contains("exit=9"));
 }
 #[test]
 fn runtime_minimum_versions() {

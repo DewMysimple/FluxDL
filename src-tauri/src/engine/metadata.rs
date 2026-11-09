@@ -1,6 +1,5 @@
 use super::validate_url;
 use crate::{
-    diagnostics::redact_log,
     errors::{AppError, AppResult, ErrorCode, ErrorPhase},
     models::{FormatOption, MediaInfo},
 };
@@ -18,12 +17,12 @@ pub fn media_from_json(raw: &Value, url: &str, stderr: &str) -> AppResult<MediaI
         .and_then(Value::as_str)
         .is_some_and(|s| s == "playlist" || s == "multi_video")
         || raw.get("entries").is_some();
-    let safe_stderr = redact_log(stderr);
-    let mut warnings = safe_stderr
+    let mut warnings = stderr
         .lines()
         .filter(|l| l.contains("WARNING") || l.contains("ERROR"))
         .take(12)
-        .map(str::to_owned)
+        .map(|_| "引擎报告警告；原始链接、标题和路径已省略，请查看诊断中心。".to_owned())
+        .take(1)
         .collect::<Vec<_>>();
     if is_playlist {
         warnings.push(

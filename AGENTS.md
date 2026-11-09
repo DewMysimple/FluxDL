@@ -33,3 +33,10 @@
 在已授权开发任务完成或中断时，按协议同步有证据的状态、验证和恢复下一步；只读任务遵守只读范围。
 日常读取、同步和交接直接遵循项目协议，不调用 wiki-memory Skill。仅用户明确要求配置、迁移、体检等记忆管理时加载 Skill；检查频率按项目协议，不把完整验收用于每轮收尾。
 <!-- wiki-memory:end -->
+
+## 本地诊断
+
+- 诊断统一由`src-tauri/src/diagnostics/`记录；只允许类型白名单事件，禁止原始URL/标题/路径/Cookie/命令行/stderr进入新日志、报告或ZIP。新引擎技术日志使用固定安全摘要。
+- Debug默认工程根`dev-logs/`；Release只能用Tauri app_log_dir，不回退源码/发行目录。日志、诊断ZIP及测试证据禁止提交；capabilities不扩大通用文件权限。
+- 耗时使用Rust Instant / 前端performance.now各自计算，解析/入队分Trace，用户选择时间不计入内部耗时。保留二次安全复核、attempt准入及durable ack后终态。
+- 相关改动执行`npm run test:diagnostics`；重复基准`benchmark:diagnostics`，真实桌面`node scripts/diagnostics-smoke.mjs <本地yt-dlp.exe>`。仅管理自有隔离debug实例，不停止用户发行版。结果及边界见`docs/engineering/diagnostics-validation.md`。

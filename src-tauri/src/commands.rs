@@ -38,17 +38,34 @@ pub async fn detect_engines(
 pub async fn probe_media(
     backend: Backend<'_>,
     url: String,
+    trace_id: Option<String>,
     error_format: Option<ErrorFormat>,
 ) -> Result<MediaInfo, IpcError> {
-    ipc(backend.probe(&url).await, error_format)
+    let trace = backend
+        .diagnostics
+        .request_trace(trace_id.as_deref(), None)
+        .map_err(|message| {
+            AppError::new(ErrorCode::InvalidInput, ErrorPhase::Validate, message)
+                .into_ipc(error_format)
+        })?;
+    ipc(backend.probe_with_trace(&url, trace).await, error_format)
 }
 #[tauri::command]
 pub async fn enqueue_download(
     backend: Backend<'_>,
     input: EnqueueInput,
+    trace_id: Option<String>,
+    related_trace_id: Option<String>,
     error_format: Option<ErrorFormat>,
 ) -> Result<DownloadTask, IpcError> {
-    ipc(backend.enqueue(input).await, error_format)
+    let trace = backend
+        .diagnostics
+        .request_trace(trace_id.as_deref(), related_trace_id.as_deref())
+        .map_err(|message| {
+            AppError::new(ErrorCode::InvalidInput, ErrorPhase::Validate, message)
+                .into_ipc(error_format)
+        })?;
+    ipc(backend.enqueue_with_trace(input, trace).await, error_format)
 }
 #[tauri::command]
 pub async fn list_tasks(

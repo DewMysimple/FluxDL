@@ -151,9 +151,16 @@ impl Cancellation {
     }
 }
 pub fn start_download(spec: ProcessSpec, cancel: Cancellation) -> DownloadHandle {
+    start_download_traced(spec, cancel, None)
+}
+pub fn start_download_traced(
+    spec: ProcessSpec,
+    cancel: Cancellation,
+    trace: Option<crate::diagnostics::Trace>,
+) -> DownloadHandle {
     let (sender, events) = mpsc::channel(128);
     let signal = cancel.clone();
-    let owner = tokio::spawn(async move { run(spec, signal, sender).await });
+    let owner = tokio::spawn(async move { run(spec, signal, sender, trace).await });
     DownloadHandle {
         events,
         owner: Some(owner),
@@ -166,6 +173,7 @@ async fn run(
     spec: ProcessSpec,
     cancel: Cancellation,
     sender: mpsc::Sender<ProcessEvent>,
+    trace: Option<crate::diagnostics::Trace>,
 ) -> AppResult<ProcessOutcome> {
     let phase = ErrorPhase::Download;
     if cancel.is_cancelled() {
@@ -174,7 +182,11 @@ async fn run(
             cancelled: true,
         });
     }
-    let mut child = hidden_command(spec.executable)
+    use crate::diagnostics::Stage;
+    if let Some(t) = &trace {
+        t.begin(Stage::DownloadEngineSpawn);
+    }
+    let spawned = hidden_command(spec.executable)
         .args(spec.args)
         .current_dir(spec.directory)
         .stdout(Stdio::piped())
@@ -187,7 +199,14 @@ async fn run(
                 "无法启动 yt-dlp，请检查引擎路径与权限。",
             )
             .with_details(error.to_string())
-        })?;
+        });
+    if let Some(t) = &trace {
+        t.result(Stage::DownloadEngineSpawn, &spawned);
+    }
+    let mut child = spawned?;
+    if let Some(t) = &trace {
+        t.begin(Stage::DownloadFirstProgress);
+    }
     cancel
         .0
         .pid

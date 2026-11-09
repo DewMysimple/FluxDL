@@ -35,3 +35,13 @@ Events: `app-state-changed` => {sessionId, revision, change}; change.type is che
 Settings accepted enums: defaultMode video|audio, quality best|2160|1440|1080|720|480, theme dark|light|system, density comfortable|compact, closeBehavior tray|exit, completionAction none|folder. enginePath/ffmpegPath paths (ffmpeg may be directory). Defaults defined in model.
 
 Canonical command registrations are in `src-tauri/src/lib.rs`, implementations in `commands.rs`; frontend wrappers and listeners are in `src/lib/api.ts`. `src-tauri/src/models.rs` defines the backend schema and `src/lib/types.ts` mirrors it. Check these sources when changing this contract.
+
+## 本地诊断协议（2026-11-09）
+
+probe_media额外接受可选traceId，enqueue_download接受可选traceId/relatedTraceId；原成功类型和errorFormat协商不变。前端生成独立UUID，后端严格验证、拒绝最近窗口内重复操作ID；ID不作权限凭据。前端record_frontend_diagnostic只接收已观测操作的两种UI阶段和有限durationMs/success，不能提交任意日志文本。
+
+diagnostic_commands.rs注册get_diagnostics_health、query_diagnostic_events(filter?)、get_diagnostics_overview(filter?)、refresh_diagnostic_report、open_diagnostics_directory、export_diagnostics_bundle(filter?)、reveal_diagnostics_bundle、show_task_diagnostics(taskId)。查询filter包含sessionId/traceId/taskId、level/source/phase、search、fromUtc/toUtc、cursor/limit，默认100/上限200，未知字段拒绝。Overview提供统计、最近错误和最多100个慢Trace（当前最多20,000事件分析窗口）。get_diagnostic_trace由query的受限traceId过滤实现，不提供任意文件读取。
+
+日志文件Event采用snake_case schema_version=1，fields为白名单；错误保留稳定error_code和可选源操作error_kind，不包含原始stderr。普通状态IPC的session/revision与诊断session完全独立；原AppEvent、tombstone、快照原子日志flush及6秒checkpoint不变。
+
+系统目录/导出/定位只允许workspace窗口；导出目的地由Rust原生save dialog选择，无前端任意路径参数，拒绝覆盖。诊断查询两窗可用，capabilities未扩大。diagnostics-locate-task只发给workspace，diagnostics-changed是独立低频提示，不占任务revision。UI每2秒读真实诊断，历史页不自动翻动。完整schema与阶段语义见[设计](engineering/observability-design.md)。

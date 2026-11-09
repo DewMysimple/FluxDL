@@ -8,6 +8,7 @@ import {
   RefreshCw,
   Terminal,
   X,
+  Activity,
 } from "lucide-react";
 import { api, isDesktop } from "../../lib/api";
 import { bytes, date, isActive, isRetryable } from "../../lib/utils";
@@ -15,6 +16,7 @@ import { useApp } from "../../stores/app";
 import { Button, MediaImage, Status, Progress } from "../../components/ui";
 import { useAction } from "../../hooks/useAction";
 import { qualityName } from "../../lib/presets";
+import { TaskDiagnosticStatus } from "../diagnostics/TaskDiagnosticStatus";
 
 export function TaskDetails({ taskId }: { taskId: string }) {
   const task = useApp((s) => s.tasksById[taskId]);
@@ -56,6 +58,7 @@ export function TaskDetails({ taskId }: { taskId: string }) {
       <span className="eyebrow">{task.media.source}</span>
       <h2>{task.media.title}</h2>
       <Status task={task} />
+      <TaskDiagnosticStatus taskId={task.id} active={isActive(task.status)} />
       <Progress task={task} />
       <dl className="details-list">
         <div>
@@ -103,6 +106,13 @@ export function TaskDetails({ taskId }: { taskId: string }) {
         </div>
       )}
       <div className="detail-actions">
+        <Button
+          disabled={!isDesktop}
+          onClick={() => void run(() => api.locateDiagnostics(task.id))}
+        >
+          <Activity size={15} />
+          查看任务诊断
+        </Button>
         {task.status === "completed" && (
           <>
             <Button

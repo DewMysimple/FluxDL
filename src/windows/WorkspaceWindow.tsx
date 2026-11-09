@@ -10,6 +10,7 @@ import {
   Plus,
   X,
   Zap,
+  Activity,
 } from "lucide-react";
 import { api, isDesktop } from "../lib/api";
 import type { MediaInfo } from "../lib/types";
@@ -24,6 +25,7 @@ import { Home } from "../pages/Home";
 import { Queue } from "../pages/Queue";
 import { HistoryPage } from "../pages/History";
 import { SettingsPage } from "../pages/Settings";
+import { DiagnosticsPage } from "../features/diagnostics/DiagnosticsPage";
 import { type Page, pages } from "../app/navigation";
 export function WorkspaceWindow() {
   const [page, setPage] = useState<Page>("home");
@@ -31,6 +33,7 @@ export function WorkspaceWindow() {
   const [taskId, setTaskId] = useState<string | null>(null);
   const [closing, setClosing] = useState(false);
   const [exiting, setExiting] = useState(false);
+  const [diagnosticTask, setDiagnosticTask] = useState("");
   const engines = useApp((s) => s.engines);
   const loading = useApp((s) => s.loading);
   const notify = useApp((s) => s.notify);
@@ -44,6 +47,27 @@ export function WorkspaceWindow() {
     setMedia(null);
     setTaskId(null);
   }, []);
+  useEffect(() => {
+    if (!isDesktop) return;
+    let disposed = false;
+    let stop: (() => void) | undefined;
+    void api
+      .onDiagnosticsTask((id) => {
+        setDiagnosticTask(id);
+        setPage("diagnostics");
+        setTaskId(null);
+        setMedia(null);
+      })
+      .then((unlisten) => {
+        if (disposed) unlisten();
+        else stop = unlisten;
+      })
+      .catch(notify);
+    return () => {
+      disposed = true;
+      stop?.();
+    };
+  }, [notify]);
   useEffect(() => {
     const handle = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -122,6 +146,17 @@ export function WorkspaceWindow() {
           </nav>
           <div className="sidebar-bottom">
             <button
+              className={`diagnostic-nav ${page === "diagnostics" ? "active" : ""}`}
+              onClick={() => {
+                setDiagnosticTask("");
+                navigate("diagnostics");
+              }}
+              title="诊断中心"
+            >
+              <Activity size={18} />
+              诊断中心
+            </button>
+            <button
               className="quick-launch"
               title="打开快速捕获"
               onClick={() => void api.quick().catch(notify)}
@@ -177,6 +212,12 @@ export function WorkspaceWindow() {
               <Queue onTask={setTaskId} />
             ) : page === "history" ? (
               <HistoryPage onTask={setTaskId} />
+            ) : page === "diagnostics" ? (
+              <DiagnosticsPage
+                key={diagnosticTask}
+                initialTask={diagnosticTask}
+                onTask={setTaskId}
+              />
             ) : (
               <SettingsPage />
             )}

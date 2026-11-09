@@ -17,6 +17,7 @@ export default defineConfig({
         "**/release/**",
         "**/artifacts/**",
         "**/src-tauri/target/**",
+        "**/dev-logs/**",
       ],
     },
   },

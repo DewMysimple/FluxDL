@@ -20,6 +20,7 @@ vi.mock("../lib/api", async (importOriginal) => {
       onChange: vi.fn(),
       onClose: vi.fn(),
       onShutdownFailed: vi.fn(),
+      onDiagnosticsTask: vi.fn(),
     },
   };
 });
@@ -32,6 +33,7 @@ beforeEach(() => {
   vi.mocked(api.onChange).mockResolvedValue(vi.fn());
   vi.mocked(api.onClose).mockResolvedValue(vi.fn());
   vi.mocked(api.onShutdownFailed).mockResolvedValue(vi.fn());
+  vi.mocked(api.onDiagnosticsTask).mockResolvedValue(vi.fn());
   seedApp(snapshot, false);
 });
 afterEach(cleanup);

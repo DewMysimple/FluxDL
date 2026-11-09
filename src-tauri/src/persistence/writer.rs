@@ -1,5 +1,6 @@
 use super::repository::Verification;
 use super::{ApplyOutcome, Loaded, Mutation, Repository};
+use crate::diagnostics::{Stage, Status, Trace};
 use crate::errors::{AppError, AppResult, ErrorCode, ErrorPhase};
 use std::{
     path::PathBuf,
@@ -11,7 +12,11 @@ use std::{
 use tokio::sync::{mpsc, oneshot};
 
 enum Request {
-    Apply(Vec<Mutation>, oneshot::Sender<AppResult<Vec<ApplyOutcome>>>),
+    Apply(
+        Vec<Mutation>,
+        oneshot::Sender<AppResult<Vec<ApplyOutcome>>>,
+        Option<Trace>,
+    ),
     Flush(oneshot::Sender<()>),
     Close(oneshot::Sender<()>),
 }
@@ -79,8 +84,15 @@ impl PersistenceWriter {
                 }
                 while let Some(request) = receiver.blocking_recv() {
                     match request {
-                        Request::Apply(changes, ack) => {
+                        Request::Apply(changes, ack, trace) => {
+                            if let Some(t) = &trace {
+                                t.finish(Stage::EnqueueDbQueue, Status::Ok, None);
+                                t.begin(Stage::EnqueueDbWrite);
+                            }
                             let result = repository.apply(&changes);
+                            if let Some(t) = &trace {
+                                t.result(Stage::EnqueueDbWrite, &result);
+                            }
                             #[cfg(test)]
                             if worker_lose_ack.swap(false, Ordering::SeqCst) {
                                 drop(ack);
@@ -128,12 +140,26 @@ impl PersistenceWriter {
         &self,
         changes: Vec<Mutation>,
     ) -> Result<Vec<ApplyOutcome>, WriteFailure> {
+        self.apply_checked_traced(changes, None).await
+    }
+    pub async fn apply_checked_traced(
+        &self,
+        changes: Vec<Mutation>,
+        trace: Option<Trace>,
+    ) -> Result<Vec<ApplyOutcome>, WriteFailure> {
         let (ack, reply) = oneshot::channel();
+        if let Some(t) = &trace {
+            t.begin(Stage::EnqueueDbQueue);
+        }
         self.sender
-            .send(Request::Apply(changes.clone(), ack))
+            .send(Request::Apply(changes.clone(), ack, trace.clone()))
             .await
             .map_err(|_| {
-                WriteFailure::Rejected(rejected("数据库写入线程已停止，未接受本次变更。"))
+                let error = rejected("数据库写入线程已停止，未接受本次变更。");
+                if let Some(t) = &trace {
+                    t.finish(Stage::EnqueueDbQueue, Status::Failed, Some(&error));
+                }
+                WriteFailure::Rejected(error)
             })?;
         match reply.await {
             Ok(result) => result.map_err(WriteFailure::Rejected),

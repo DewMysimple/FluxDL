@@ -2,6 +2,7 @@
 use crate::events::AppEvent;
 mod files;
 use crate::{
+    diagnostics::{Diagnostics, Stage, Status, Trace},
     engine::{self, DownloadEvent},
     errors::{AppError, AppResult, ErrorCode, ErrorPhase},
     events::{AppChange, EventJournal, FileAvailability, APP_STATE_EVENT},
@@ -161,6 +162,7 @@ struct Control {
 }
 
 pub struct Manager {
+    pub diagnostics: Arc<Diagnostics>,
     self_ref: OnceLock<Weak<Manager>>,
     inner: Mutex<Inner>,
     writer: PersistenceWriter,
@@ -192,13 +194,25 @@ impl Manager {
         resource_dir: Option<PathBuf>,
         app: Option<tauri::AppHandle>,
     ) -> AppResult<Arc<Self>> {
+        let diagnostics = Diagnostics::for_app(app.as_ref());
+        Self::init_with_diagnostics(data_dir, resource_dir, app, diagnostics).await
+    }
+    /// Native integration/benchmark embedding; never exposed over IPC.
+    pub async fn init_with_diagnostics(
+        data_dir: PathBuf,
+        resource_dir: Option<PathBuf>,
+        app: Option<tauri::AppHandle>,
+        diagnostics: Arc<Diagnostics>,
+    ) -> AppResult<Arc<Self>> {
         let (writer, loaded) = PersistenceWriter::open(data_dir).await?;
         let engines = engine::detect(&loaded.settings, resource_dir.as_deref()).await;
+        diagnostics.set_engine_versions(&engines);
         let mut storage_diagnostics = loaded.diagnostics;
         if let Some(warning) = loaded.recovery_warning {
             storage_diagnostics.push(warning);
         }
         let manager = Arc::new(Self {
+            diagnostics,
             self_ref: OnceLock::new(),
             inner: Mutex::new(Inner {
                 settings: loaded.settings,
@@ -420,7 +434,28 @@ impl Manager {
         }
     }
     async fn apply_critical(&self, changes: Vec<Mutation>) -> AppResult<()> {
-        let mut result = self.writer.apply_checked(changes.clone()).await;
+        let context = changes.first().and_then(|m| match m {
+            Mutation::UpsertTask { task, .. } => self.diagnostics.task_trace(&task.id),
+            _ => None,
+        });
+        let trace = changes.first().and_then(|m| match m {
+            Mutation::UpsertTask { task, .. } => self
+                .diagnostics
+                .task_trace(&task.id)
+                .filter(|t| t.is_open(Stage::EnqueuePersist)),
+            _ => None,
+        });
+        let mut result = self
+            .writer
+            .apply_checked_traced(changes.clone(), trace)
+            .await;
+        if let (
+            Some(trace),
+            Err(WriteFailure::Rejected(error) | WriteFailure::Unconfirmed(error)),
+        ) = (&context, &result)
+        {
+            trace.fault(Stage::PersistenceIssue, error);
+        }
         while let Err(WriteFailure::Unconfirmed(error)) = &result {
             self.inner
                 .lock()
@@ -634,29 +669,68 @@ impl Manager {
         }
         let previous = inner.diagnostics();
         inner.engines = diagnostics.clone();
+        self.diagnostics.set_engine_versions(&diagnostics);
         inner.capture_diagnostics(previous);
         drop(inner);
         self.emit().await;
         self.inner.lock().await.diagnostics()
     }
     pub async fn probe(&self, url: &str) -> AppResult<MediaInfo> {
+        let trace = self.diagnostics.trace(None, None, None);
+        self.probe_with_trace(url, trace).await
+    }
+    pub async fn probe_with_trace(&self, url: &str, trace: Trace) -> AppResult<MediaInfo> {
+        trace.begin(Stage::ParseTotal);
+        trace.begin(Stage::ParseIpcDispatch);
         let (settings, engines) = {
             let inner = self.inner.lock().await;
             (inner.settings.clone(), inner.engines.clone())
         };
-        engine::probe(&settings, &engines, url).await
+        trace.finish(Stage::ParseIpcDispatch, Status::Ok, None);
+        let result = engine::probe_traced(&settings, &engines, url, Some(&trace)).await;
+        trace.result(Stage::ParseTotal, &result);
+        self.diagnostics.notify();
+        result
     }
     pub async fn enqueue(&self, input: EnqueueInput) -> AppResult<DownloadTask> {
-        self.run_owned(move |manager| async move { manager.enqueue_owned(input).await })
-            .await
+        let trace = self.diagnostics.trace(None, None, None);
+        self.enqueue_with_trace(input, trace).await
     }
-    async fn enqueue_owned(&self, input: EnqueueInput) -> AppResult<DownloadTask> {
+    pub async fn enqueue_with_trace(
+        &self,
+        input: EnqueueInput,
+        trace: Trace,
+    ) -> AppResult<DownloadTask> {
+        self.run_owned(move |manager| async move {
+            trace.begin(Stage::EnqueueToProgress);
+            trace.begin(Stage::EnqueueValidate);
+            let result = manager.enqueue_owned(input, &trace).await;
+            trace.result(Stage::EnqueueValidate, &result);
+            trace.result(Stage::EnqueueMetadataRecheck, &result);
+            trace.result(Stage::EnqueuePersist, &result);
+            if result.is_err() {
+                trace.result(Stage::EnqueueToProgress, &result);
+            }
+            manager.diagnostics.notify();
+            result
+        })
+        .await
+    }
+    async fn enqueue_owned(&self, input: EnqueueInput, trace: &Trace) -> AppResult<DownloadTask> {
         if self.shutting_down.load(Ordering::SeqCst) {
             return Err(closing_error("应用正在退出，请稍后重试。"));
         }
         validate_options(&input.mode, &input.quality)?;
+        trace.finish(Stage::EnqueueValidate, Status::Ok, None);
         // Metadata sent over IPC is not trusted. Resolve it again with the configured engine.
-        let media = self.probe(&input.media.url).await?;
+        trace.begin(Stage::EnqueueMetadataRecheck);
+        let (settings, engines) = {
+            let inner = self.inner.lock().await;
+            (inner.settings.clone(), inner.engines.clone())
+        };
+        let result = engine::probe(&settings, &engines, &input.media.url).await;
+        trace.result(Stage::EnqueueMetadataRecheck, &result);
+        let media = result?;
         if media.is_playlist {
             return Err(invalid_error(
                 "当前 MVP 不执行整列表批量下载，请提供单个视频的链接。",
@@ -698,6 +772,9 @@ impl Manager {
             updated_at: now,
             file_exists: false,
         };
+        let task_trace = trace.with_task(&task.id);
+        self.diagnostics.attach(&task.id, task_trace.clone());
+        task_trace.begin(Stage::EnqueuePersist);
         {
             let _gate = self.critical.lock().await;
             let seq = {
@@ -711,6 +788,8 @@ impl Manager {
                 seq
             };
             self.save_candidate(task.clone(), seq, false, None).await?;
+            task_trace.finish(Stage::EnqueuePersist, Status::Ok, None);
+            task_trace.begin(Stage::QueueWait);
         }
         self.emit().await;
         self.wake.notify_one();
@@ -787,8 +866,24 @@ impl Manager {
             {
                 control.cancel.cancel();
             }
+            let queued_cancel = candidate.0.status == TaskStatus::Cancelled;
+            if queued_cancel {
+                if let Some(t) = self.diagnostics.task_trace(id) {
+                    t.begin(Stage::DownloadTerminal);
+                }
+            }
             self.save_candidate(candidate.0, candidate.1, false, None)
                 .await?;
+            if queued_cancel {
+                if let Some(t) = self.diagnostics.task_trace(id) {
+                    t.finish(Stage::QueueWait, Status::Cancelled, None);
+                    t.finish(Stage::EnqueueToProgress, Status::Cancelled, None);
+                    t.finish(Stage::DownloadTerminal, Status::Cancelled, None);
+                    t.missing(Stage::DownloadEngineSpawn, Status::NotApplicable);
+                    t.missing(Stage::DownloadFirstProgress, Status::Unobserved);
+                    t.missing(Stage::DownloadPostprocess, Status::NotApplicable);
+                }
+            }
         }
         self.emit().await;
         self.wake.notify_one();
@@ -826,7 +921,20 @@ impl Manager {
                 inner.pending_tasks.insert(id.to_string());
                 (task, seq)
             };
-            self.save_candidate(task, seq, true, None).await?;
+            let previous = self.diagnostics.task_trace(id);
+            let trace = self
+                .diagnostics
+                .trace(None, previous.as_ref().map(|t| t.id()), Some(id));
+            trace.begin(Stage::EnqueueToProgress);
+            trace.begin(Stage::EnqueuePersist);
+            let result = self.save_candidate(task, seq, true, None).await;
+            trace.result(Stage::EnqueuePersist, &result);
+            if result.is_err() {
+                trace.result(Stage::EnqueueToProgress, &result);
+            }
+            result?;
+            trace.begin(Stage::QueueWait);
+            self.diagnostics.attach(id, trace);
             self.inner.lock().await.cancel_requested.remove(id);
         }
         self.emit().await;
@@ -1090,6 +1198,10 @@ impl Manager {
         };
         self.save_candidate(task.clone(), seq, false, Some(attempt))
             .await?;
+        if let Some(trace) = self.diagnostics.task_trace(&task.id) {
+            trace.finish(Stage::QueueWait, Status::Ok, None);
+            trace.begin(Stage::DownloadTotal);
+        }
         let mut inner = self.inner.lock().await;
         if self.shutting_down.load(Ordering::SeqCst) {
             inner.cancel_requested.insert(task.id.clone());
@@ -1167,6 +1279,22 @@ impl Manager {
             .await;
         let mut inner = self.inner.lock().await;
         if result.is_ok() {
+            if inner.attempts.get(id) == Some(&pending.attempt) {
+                if let Some(trace) = self.diagnostics.task_trace(id) {
+                    let status = match pending.task.status {
+                        TaskStatus::Completed => Status::Ok,
+                        TaskStatus::Cancelled => Status::Cancelled,
+                        _ => Status::Failed,
+                    };
+                    trace.finish(Stage::DownloadTerminal, status, None);
+                    trace.finish(Stage::DownloadTotal, status, None);
+                    trace.missing(Stage::DownloadFirstProgress, Status::Unobserved);
+                    trace.missing(Stage::DownloadEngineSpawn, Status::Unobserved);
+                    trace.missing(Stage::DownloadActive, Status::Unobserved);
+                    trace.missing(Stage::EnqueueToProgress, Status::Unobserved);
+                    trace.missing(Stage::DownloadPostprocess, Status::NotApplicable);
+                }
+            }
             if inner.attempts.get(id) == Some(&pending.attempt) {
                 if let Some(task) = inner.tasks.iter_mut().find(|task| task.id == id) {
                     *task = pending.task;
@@ -1258,6 +1386,24 @@ impl Manager {
     }
 
     async fn settle_download(&self, id: &str, control: &Control, result: AppResult<()>) {
+        let current_attempt = self.inner.lock().await.attempts.get(id) == Some(&control.attempt);
+        if current_attempt {
+            if let Some(trace) = self.diagnostics.task_trace(id) {
+                if let Err(error) = &result {
+                    trace.failure(error);
+                }
+                let status = if result.is_err() {
+                    Status::Failed
+                } else if control.cancel.is_cancelled() {
+                    Status::Cancelled
+                } else {
+                    Status::Ok
+                };
+                trace.finish(Stage::DownloadActive, status, result.as_ref().err());
+                trace.finish(Stage::DownloadPostprocess, status, result.as_ref().err());
+                trace.begin(Stage::DownloadTerminal);
+            }
+        }
         loop {
             match self.finish_task(id, control, result.clone()).await {
                 Ok(()) => break,
@@ -1303,6 +1449,9 @@ impl Manager {
                     .any(|task| task.id == id && task.status.running())
                 && !inner.pending_terminal.contains_key(id);
             if current {
+                if let Some(trace) = self.diagnostics.task_trace(id) {
+                    trace.fault(Stage::DownloadProcessIssue, error);
+                }
                 // Cleanup failures must stay visible even after cancellation
                 // has closed ordinary progress/log admission.
                 inner.set_process_error(Some(error.safe_text()));
@@ -1311,6 +1460,14 @@ impl Manager {
         if !inner.accepts_progress(id, attempt) {
             return Ok(());
         }
+        let progress_kind = match &event {
+            DownloadEvent::Progress { fact, .. } => match &fact.event {
+                engine::ProgressEvent::Download { .. } => 1,
+                engine::ProgressEvent::Postprocessing => 2,
+                _ => 0,
+            },
+            _ => 0,
+        };
         let mut appended = None;
         let change = {
             let task = inner
@@ -1349,6 +1506,18 @@ impl Manager {
             change
         };
         if change != RuntimeChange::Unchanged {
+            if matches!(change, RuntimeChange::Progress | RuntimeChange::FullUpsert) {
+                if let Some(trace) = self.diagnostics.task_trace(id) {
+                    if progress_kind == 1 {
+                        trace.finish(Stage::DownloadFirstProgress, Status::Ok, None);
+                        trace.finish(Stage::EnqueueToProgress, Status::Ok, None);
+                        trace.begin(Stage::DownloadActive);
+                    } else if progress_kind == 2 {
+                        trace.finish(Stage::DownloadActive, Status::Ok, None);
+                        trace.begin(Stage::DownloadPostprocess);
+                    }
+                }
+            }
             let seq = inner.next_seq()?;
             inner.versions.insert(id.to_string(), seq);
             inner.dirty.insert(id.to_string());
@@ -1373,7 +1542,13 @@ impl Manager {
         if control.cancel.is_cancelled() {
             return Ok(());
         }
-        let download = engine::start_download(task, settings, engines, control.cancel.clone())?;
+        let download = engine::start_download_traced(
+            task,
+            settings,
+            engines,
+            control.cancel.clone(),
+            self.diagnostics.task_trace(&task.id),
+        )?;
         self.drive_download(task, control, download).await
     }
 
@@ -1534,6 +1709,7 @@ mod tests {
         let mut engines = EngineDiagnostics::default();
         engines.ytdlp.available = true;
         let manager = Arc::new(Manager {
+            diagnostics: Diagnostics::disabled(),
             self_ref: OnceLock::new(),
             inner: Mutex::new(Inner {
                 settings: Settings::default(),
@@ -1709,6 +1885,10 @@ mod tests {
             vec![fixture_task("running", TaskStatus::Downloading, &directory)],
         )
         .await;
+        let diagnostic_trace = manager.diagnostics.trace(None, None, None);
+        manager
+            .diagnostics
+            .attach("running", diagnostic_trace.clone());
         manager
             .inner
             .lock()
@@ -1731,6 +1911,13 @@ mod tests {
         assert!(snapshot.tasks[0].error.is_some());
         assert!(!snapshot.engines.warnings.is_empty());
         assert_eq!(manager.inner.lock().await.pending_terminal.len(), 1);
+        let diagnostic_events = manager.diagnostics.read().events;
+        assert!(diagnostic_events
+            .iter()
+            .any(|e| e.trace_id == diagnostic_trace.id()
+                && e.phase == Stage::PersistenceIssue
+                && e.fields.error_code == Some(ErrorCode::PersistenceRejected)
+                && e.duration_ms.is_none()));
         connection
             .execute_batch("DROP TRIGGER reject_terminal;")
             .unwrap();
@@ -1962,7 +2149,10 @@ mod tests {
             .execute("INSERT INTO tasks VALUES('opaque','keep original raw')", [])
             .unwrap();
         drop(connection);
-        let manager = Manager::init(directory.clone(), None, None).await.unwrap();
+        let manager =
+            Manager::init_with_diagnostics(directory.clone(), None, None, Diagnostics::disabled())
+                .await
+                .unwrap();
         assert!(manager
             .detect()
             .await
@@ -2475,7 +2665,10 @@ mod tests {
             .execute("INSERT INTO tasks VALUES('legacy',?1)", [&raw])
             .unwrap();
         drop(connection);
-        let manager = Manager::init(directory.clone(), None, None).await.unwrap();
+        let manager =
+            Manager::init_with_diagnostics(directory.clone(), None, None, Diagnostics::disabled())
+                .await
+                .unwrap();
         let snapshot = manager.snapshot().await;
         let details = manager.details("legacy").await.unwrap();
         for visible in [
@@ -3025,7 +3218,10 @@ mod tests {
         };
         store.save(&settings, &[]).unwrap();
         drop(store);
-        let manager = Manager::init(data.clone(), None, None).await.unwrap();
+        let manager =
+            Manager::init_with_diagnostics(data.clone(), None, None, Diagnostics::disabled())
+                .await
+                .unwrap();
         async fn add(manager: &Manager, name: &str) -> DownloadTask {
             let media = MediaInfo {
                 url: format!("https://fixture.invalid/{name}"),
@@ -3147,7 +3343,10 @@ mod tests {
         assert!(events.find("finish serial-a").unwrap() < events.find("start serial-b").unwrap());
         manager.shutdown().await.unwrap();
         drop(manager);
-        let reopened = Manager::init(data.clone(), None, None).await.unwrap();
+        let reopened =
+            Manager::init_with_diagnostics(data.clone(), None, None, Diagnostics::disabled())
+                .await
+                .unwrap();
         let snapshot = reopened.snapshot().await;
         assert_eq!(snapshot.settings.theme, "light");
         assert_eq!(snapshot.tasks.len(), 6);

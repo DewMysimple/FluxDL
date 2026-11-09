@@ -10,3 +10,4 @@ wiki_memory/
 prompt/
 docs/
 package-lock.json
+/dev-logs/

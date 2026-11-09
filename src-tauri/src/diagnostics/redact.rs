@@ -58,6 +58,17 @@ pub fn report_error(error: &crate::errors::AppError) {
 pub fn redact_log(value: &str) -> String {
     LogRedactor::default().redact(value)
 }
+/// Raw engine output can contain arbitrary titles and filenames. Never retain it.
+pub fn engine_output_summary(value: &str) -> &'static str {
+    let value = value.trim_start();
+    if value.starts_with("ERROR:") {
+        "引擎报告错误；请按诊断中心的阶段与错误分类排查。"
+    } else if value.starts_with("WARNING:") {
+        "引擎报告警告；原始媒体、链接和路径详情已省略。"
+    } else {
+        "引擎输出已接收；原始媒体、链接和路径详情已省略。"
+    }
+}
 fn redact_record(value: &str, sensitive_continuation: &mut bool) -> String {
     static HEADERS: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(r#"(?i)\b(?:proxy-authorization|authorization|set-cookie|cookie|x-auth-token|x-api-key|auth)\b["']?\s*[:=]\s*"#).unwrap()
@@ -67,6 +78,10 @@ fn redact_record(value: &str, sensitive_continuation: &mut bool) -> String {
     });
     static URLS: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r#"(?i)\b[a-z][a-z0-9+.-]*://[^\s<>"'`]+"#).unwrap());
+    static PATHS: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r#"(?i)(?:\b[a-z]:[\\/]|\\\\[^\\\s]+\\|/(?:home|users|tmp|var)/)[^\r\n<>\"|]*"#)
+            .unwrap()
+    });
     let clean = strip_ansi(value).replace("\\/", "/");
     let mut lines = Vec::new();
     for line in clean.lines() {
@@ -86,23 +101,8 @@ fn redact_record(value: &str, sensitive_continuation: &mut bool) -> String {
         } else {
             line.to_owned()
         };
-        let safe = URLS.replace_all(&safe, |captures: &regex::Captures<'_>| {
-            let original = captures.get(0).unwrap().as_str();
-            let candidate = original.trim_end_matches([')', ']', '}', ',', ';', '.']);
-            let suffix = &original[candidate.len()..];
-            match url::Url::parse(candidate) {
-                Ok(mut parsed) => {
-                    parsed.set_query(None);
-                    parsed.set_fragment(None);
-                    if parsed.set_username("").is_err() || parsed.set_password(None).is_err() {
-                        return format!("[链接已隐藏]{suffix}");
-                    }
-                    format!("{parsed}{suffix}")
-                }
-                Err(_) => format!("[链接已隐藏]{suffix}"),
-            }
-        });
-        lines.push(safe.into_owned());
+        let safe = URLS.replace_all(&safe, "[链接已隐藏]");
+        lines.push(PATHS.replace_all(&safe, "[本地路径已隐藏]").into_owned());
     }
     lines.join("\n").chars().take(1800).collect()
 }
@@ -131,7 +131,7 @@ mod tests {
             let safe = redact_log(input);
             assert!(!safe.contains("SECRET"), "{safe}");
         }
-        assert!(redact_log("https://example.com/path?secret").contains("example.com/path"));
+        assert!(!redact_log("https://example.com/path?secret").contains("example.com/path"));
         assert_eq!(redact_log("\u{1b}[31m普通错误\u{1b}[0m"), "普通错误");
     }
     #[test]

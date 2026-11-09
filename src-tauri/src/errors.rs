@@ -2,8 +2,21 @@
 use serde::{Deserialize, Serialize};
 
 pub type AppResult<T> = Result<T, AppError>;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ErrorKind {
+    Network,
+    AccessRestricted,
+    UnsupportedUrl,
+    MediaProcessing,
+    DiskFull,
+    PermissionDenied,
+    FormatUnavailable,
+    JsRuntime,
+    Unknown,
+}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ErrorCode {
     InvalidInput,
@@ -41,6 +54,7 @@ pub enum ErrorPhase {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AppError {
+    pub kind: Option<ErrorKind>,
     pub code: ErrorCode,
     pub phase: ErrorPhase,
     pub message: String,
@@ -49,11 +63,16 @@ pub struct AppError {
 impl AppError {
     pub fn new(code: ErrorCode, phase: ErrorPhase, message: impl AsRef<str>) -> Self {
         Self {
+            kind: None,
             code,
             phase,
             message: crate::diagnostics::redact_log(message.as_ref()),
             details: None,
         }
+    }
+    pub fn with_kind(mut self, kind: ErrorKind) -> Self {
+        self.kind = Some(kind);
+        self
     }
     pub fn with_details(mut self, details: impl AsRef<str>) -> Self {
         let safe = crate::diagnostics::redact_log(details.as_ref());

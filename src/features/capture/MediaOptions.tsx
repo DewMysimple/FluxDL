@@ -17,13 +17,14 @@ import { bytes, duration } from "../../lib/utils";
 import { useApp } from "../../stores/app";
 import { IconButton, Button, MediaImage } from "../../components/ui";
 import { qualityOptions } from "../../lib/presets";
+import { TaskDiagnosticStatus } from "../diagnostics/TaskDiagnosticStatus";
 
 export function MediaOptions({
   media,
   onAdded,
 }: {
   media: MediaInfo;
-  onAdded: () => void;
+  onAdded: (taskId?: string) => void;
 }) {
   const settings = useApp((s) => s.settings);
   const engines = useApp((s) => s.engines);
@@ -35,6 +36,7 @@ export function MediaOptions({
   const [advanced, setAdvanced] = useState(false);
   const [busy, setBusy] = useState(false);
   const [added, setAdded] = useState(false);
+  const [traceId, setTraceId] = useState("");
   const ffmpeg = engines.ffmpeg.available && engines.ffprobe.available;
   const selected = media.formats.find((f) => f.formatId === format);
   const needsFfmpeg = mode === "audio" || !!selected?.requiresFfmpeg;
@@ -47,16 +49,19 @@ export function MediaOptions({
     if (busy || blocked) return;
     setBusy(true);
     try {
-      await api.enqueue({
-        media,
-        mode,
-        quality,
-        formatId: format || null,
-        outputDir: directory || null,
-      });
+      const task = await api.enqueue(
+        {
+          media,
+          mode,
+          quality,
+          formatId: format || null,
+          outputDir: directory || null,
+        },
+        setTraceId,
+      );
       await useApp.getState().refresh();
       setAdded(true);
-      onAdded();
+      onAdded(task.id);
     } catch (error) {
       notify(error);
     } finally {
@@ -208,6 +213,9 @@ export function MediaOptions({
         <ShieldCheck size={12} />
         请仅下载您拥有权利或获得授权的内容
       </p>
+      {busy && traceId && (
+        <TaskDiagnosticStatus traceId={traceId} active={busy} />
+      )}
     </div>
   );
 }

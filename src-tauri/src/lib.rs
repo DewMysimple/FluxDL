@@ -1,4 +1,5 @@
 mod commands;
+mod diagnostic_commands;
 pub mod diagnostics;
 pub mod engine;
 pub mod errors;
@@ -47,6 +48,10 @@ pub(crate) fn graceful_exit(app: tauri::AppHandle) {
                 }
                 return;
             }
+        }
+        if let Some(manager) = app.try_state::<Arc<Manager>>() {
+            let service = manager.diagnostics.clone();
+            let _ = tauri::async_runtime::spawn_blocking(move || service.flush()).await;
         }
         app.exit(0);
     });
@@ -102,6 +107,15 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            diagnostic_commands::get_diagnostics_health,
+            diagnostic_commands::query_diagnostic_events,
+            diagnostic_commands::get_diagnostics_overview,
+            diagnostic_commands::record_frontend_diagnostic,
+            diagnostic_commands::refresh_diagnostic_report,
+            diagnostic_commands::open_diagnostics_directory,
+            diagnostic_commands::export_diagnostics_bundle,
+            diagnostic_commands::reveal_diagnostics_bundle,
+            diagnostic_commands::show_task_diagnostics,
             commands::get_app_state,
             commands::get_task_details,
             commands::detect_engines,
