@@ -1,0 +1,12 @@
+{
+  "schema_version": 2,
+  "mode": "standard",
+  "tool_version": "3.4.0",
+  "navigation": "README.md",
+  "link_style": "markdown",
+  "read_budget": {
+    "startup_chars": 16000,
+    "page_chars": 6000,
+    "todo_items": 20
+  }
+}

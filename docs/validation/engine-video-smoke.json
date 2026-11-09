@@ -1,0 +1,164 @@
+{
+  "elapsedSeconds": 26.3796862,
+  "engines": {
+    "ffmpeg": {
+      "available": true,
+      "message": "已检测，可运行",
+      "path": "<FFMPEG_EXECUTABLE>",
+      "source": "PATH",
+      "version": "ffmpeg version n8.0.1-23-gf9a3e1b776-20251204 Copyright (c) 2000-2025 the FFmpeg developers"
+    },
+    "ffprobe": {
+      "available": true,
+      "message": "已检测，可运行",
+      "path": "<FFPROBE_EXECUTABLE>",
+      "source": "PATH",
+      "version": "ffprobe version n8.0.1-23-gf9a3e1b776-20251204 Copyright (c) 2007-2025 the FFmpeg developers"
+    },
+    "runtime": {
+      "available": true,
+      "message": "已检测，可运行",
+      "path": "<JAVASCRIPT_RUNTIME_EXECUTABLE>",
+      "source": "node",
+      "version": "v24.16.0"
+    },
+    "warnings": [
+      "版本检测仅验证可执行性；EJS 脚本是否可用需以站点解析结果为准。未启用远程组件下载。官方指引：https://github.com/yt-dlp/yt-dlp/wiki/EJS"
+    ],
+    "ytdlp": {
+      "available": true,
+      "message": "已检测，可运行",
+      "path": "<YT_DLP_EXECUTABLE>",
+      "source": "custom",
+      "version": "2026.07.04"
+    }
+  },
+  "maxSimultaneousRunningTasks": 1,
+  "media": {
+    "duration": null,
+    "formats": [
+      {
+        "ext": "m4v",
+        "filesize": null,
+        "formatId": "x-m4v",
+        "hasAudio": true,
+        "hasVideo": true,
+        "height": null,
+        "label": "视频 · M4V",
+        "requiresFfmpeg": false
+      }
+    ],
+    "isPlaylist": false,
+    "mediaId": "trailer_iphone",
+    "source": "Generic",
+    "thumbnail": null,
+    "title": "trailer_iphone",
+    "url": "https://download.blender.org/peach/trailer/trailer_iphone.m4v",
+    "warnings": [
+      "WARNING: Your yt-dlp version (2026.07.04) is older than 90 days!"
+    ]
+  },
+  "mode": "video",
+  "passed": true,
+  "persistenceVerified": true,
+  "publicUrl": "https://download.blender.org/peach/trailer/trailer_iphone.m4v",
+  "realProgressObserved": true,
+  "tasks": [
+    {
+      "createdAt": "2026-11-09T03:50:00.307009200+00:00",
+      "downloadedBytes": 3889885,
+      "error": null,
+      "eta": null,
+      "fileExists": true,
+      "finalPath": "<PROJECT_ROOT>\\artifacts\\video-e2e\\test-media\\trailer_iphone [trailer_iphone] 56c69323-b2e6-4a56-ad32-67c801476338.m4v",
+      "formatId": null,
+      "id": "56c69323-b2e6-4a56-ad32-67c801476338",
+      "logs": [
+        "WARNING: Your yt-dlp version (2026.07.04) is older than 90 days!",
+        "         It is strongly recommended to always use the latest version.",
+        "         Run \"yt-dlp --update\" or \"yt-dlp -U\" to update.",
+        "         To suppress this warning, add --no-update to your command/config."
+      ],
+      "media": {
+        "duration": null,
+        "formats": [
+          {
+            "ext": "m4v",
+            "filesize": null,
+            "formatId": "x-m4v",
+            "hasAudio": true,
+            "hasVideo": true,
+            "height": null,
+            "label": "视频 · M4V",
+            "requiresFfmpeg": false
+          }
+        ],
+        "isPlaylist": false,
+        "mediaId": "trailer_iphone",
+        "source": "Generic",
+        "thumbnail": null,
+        "title": "trailer_iphone",
+        "url": "https://download.blender.org/peach/trailer/trailer_iphone.m4v",
+        "warnings": [
+          "WARNING: Your yt-dlp version (2026.07.04) is older than 90 days!"
+        ]
+      },
+      "mode": "video",
+      "outputDir": "<PROJECT_ROOT>\\artifacts\\video-e2e\\test-media",
+      "progress": null,
+      "quality": "best",
+      "speed": null,
+      "status": "completed",
+      "totalBytes": 3889885,
+      "updatedAt": "2026-11-09T03:50:08.430666300+00:00"
+    },
+    {
+      "createdAt": "2026-11-09T03:50:06.013296500+00:00",
+      "downloadedBytes": 3889885,
+      "error": null,
+      "eta": null,
+      "fileExists": true,
+      "finalPath": "<PROJECT_ROOT>\\artifacts\\video-e2e\\test-media\\trailer_iphone [trailer_iphone] 74c83aad-e9e6-4692-a29a-c47a5a4aacde.m4v",
+      "formatId": null,
+      "id": "74c83aad-e9e6-4692-a29a-c47a5a4aacde",
+      "logs": [
+        "WARNING: Your yt-dlp version (2026.07.04) is older than 90 days!",
+        "         It is strongly recommended to always use the latest version.",
+        "         Run \"yt-dlp --update\" or \"yt-dlp -U\" to update.",
+        "         To suppress this warning, add --no-update to your command/config."
+      ],
+      "media": {
+        "duration": null,
+        "formats": [
+          {
+            "ext": "m4v",
+            "filesize": null,
+            "formatId": "x-m4v",
+            "hasAudio": true,
+            "hasVideo": true,
+            "height": null,
+            "label": "视频 · M4V",
+            "requiresFfmpeg": false
+          }
+        ],
+        "isPlaylist": false,
+        "mediaId": "trailer_iphone",
+        "source": "Generic",
+        "thumbnail": null,
+        "title": "trailer_iphone",
+        "url": "https://download.blender.org/peach/trailer/trailer_iphone.m4v",
+        "warnings": [
+          "WARNING: Your yt-dlp version (2026.07.04) is older than 90 days!"
+        ]
+      },
+      "mode": "video",
+      "outputDir": "<PROJECT_ROOT>\\artifacts\\video-e2e\\test-media",
+      "progress": null,
+      "quality": "best",
+      "speed": null,
+      "status": "completed",
+      "totalBytes": 3889885,
+      "updatedAt": "2026-11-09T03:50:15.501727800+00:00"
+    }
+  ]
+}

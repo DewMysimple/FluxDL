@@ -1,0 +1,164 @@
+{
+  "elapsedSeconds": 28.7517078,
+  "engines": {
+    "ffmpeg": {
+      "available": true,
+      "message": "已检测，可运行",
+      "path": "<FFMPEG_EXECUTABLE>",
+      "source": "PATH",
+      "version": "ffmpeg version n8.0.1-23-gf9a3e1b776-20251204 Copyright (c) 2000-2025 the FFmpeg developers"
+    },
+    "ffprobe": {
+      "available": true,
+      "message": "已检测，可运行",
+      "path": "<FFPROBE_EXECUTABLE>",
+      "source": "PATH",
+      "version": "ffprobe version n8.0.1-23-gf9a3e1b776-20251204 Copyright (c) 2007-2025 the FFmpeg developers"
+    },
+    "runtime": {
+      "available": true,
+      "message": "已检测，可运行",
+      "path": "<JAVASCRIPT_RUNTIME_EXECUTABLE>",
+      "source": "node",
+      "version": "v24.16.0"
+    },
+    "warnings": [
+      "版本检测仅验证可执行性；EJS 脚本是否可用需以站点解析结果为准。未启用远程组件下载。官方指引：https://github.com/yt-dlp/yt-dlp/wiki/EJS"
+    ],
+    "ytdlp": {
+      "available": true,
+      "message": "已检测，可运行",
+      "path": "<YT_DLP_EXECUTABLE>",
+      "source": "custom",
+      "version": "2026.07.04"
+    }
+  },
+  "maxSimultaneousRunningTasks": 1,
+  "media": {
+    "duration": null,
+    "formats": [
+      {
+        "ext": "ogg",
+        "filesize": null,
+        "formatId": "ogg",
+        "hasAudio": true,
+        "hasVideo": false,
+        "height": null,
+        "label": "音频 · OGG",
+        "requiresFfmpeg": false
+      }
+    ],
+    "isPlaylist": false,
+    "mediaId": "trailer_400p",
+    "source": "Generic",
+    "thumbnail": null,
+    "title": "trailer_400p",
+    "url": "https://download.blender.org/peach/trailer/trailer_400p.ogg",
+    "warnings": [
+      "WARNING: Your yt-dlp version (2026.07.04) is older than 90 days!"
+    ]
+  },
+  "mode": "audio",
+  "passed": true,
+  "persistenceVerified": true,
+  "publicUrl": "https://download.blender.org/peach/trailer/trailer_400p.ogg",
+  "realProgressObserved": true,
+  "tasks": [
+    {
+      "createdAt": "2026-11-09T03:48:24.767852900+00:00",
+      "downloadedBytes": 4360399,
+      "error": null,
+      "eta": null,
+      "fileExists": true,
+      "finalPath": "<PROJECT_ROOT>\\artifacts\\test-media\\trailer_400p [trailer_400p] 1da84b98-122d-4c30-a154-f81d039dc3fd.mp3",
+      "formatId": null,
+      "id": "1da84b98-122d-4c30-a154-f81d039dc3fd",
+      "logs": [
+        "WARNING: Your yt-dlp version (2026.07.04) is older than 90 days!",
+        "         It is strongly recommended to always use the latest version.",
+        "         Run \"yt-dlp --update\" or \"yt-dlp -U\" to update.",
+        "         To suppress this warning, add --no-update to your command/config."
+      ],
+      "media": {
+        "duration": null,
+        "formats": [
+          {
+            "ext": "ogg",
+            "filesize": null,
+            "formatId": "ogg",
+            "hasAudio": true,
+            "hasVideo": false,
+            "height": null,
+            "label": "音频 · OGG",
+            "requiresFfmpeg": false
+          }
+        ],
+        "isPlaylist": false,
+        "mediaId": "trailer_400p",
+        "source": "Generic",
+        "thumbnail": null,
+        "title": "trailer_400p",
+        "url": "https://download.blender.org/peach/trailer/trailer_400p.ogg",
+        "warnings": [
+          "WARNING: Your yt-dlp version (2026.07.04) is older than 90 days!"
+        ]
+      },
+      "mode": "audio",
+      "outputDir": "<PROJECT_ROOT>\\artifacts\\test-media",
+      "progress": null,
+      "quality": "best",
+      "speed": null,
+      "status": "completed",
+      "totalBytes": 4360399,
+      "updatedAt": "2026-11-09T03:48:32.580871700+00:00"
+    },
+    {
+      "createdAt": "2026-11-09T03:48:30.656533900+00:00",
+      "downloadedBytes": 4360399,
+      "error": null,
+      "eta": null,
+      "fileExists": true,
+      "finalPath": "<PROJECT_ROOT>\\artifacts\\test-media\\trailer_400p [trailer_400p] 64657cf4-44f3-4884-89d2-0e3721901433.mp3",
+      "formatId": null,
+      "id": "64657cf4-44f3-4884-89d2-0e3721901433",
+      "logs": [
+        "WARNING: Your yt-dlp version (2026.07.04) is older than 90 days!",
+        "         It is strongly recommended to always use the latest version.",
+        "         Run \"yt-dlp --update\" or \"yt-dlp -U\" to update.",
+        "         To suppress this warning, add --no-update to your command/config."
+      ],
+      "media": {
+        "duration": null,
+        "formats": [
+          {
+            "ext": "ogg",
+            "filesize": null,
+            "formatId": "ogg",
+            "hasAudio": true,
+            "hasVideo": false,
+            "height": null,
+            "label": "音频 · OGG",
+            "requiresFfmpeg": false
+          }
+        ],
+        "isPlaylist": false,
+        "mediaId": "trailer_400p",
+        "source": "Generic",
+        "thumbnail": null,
+        "title": "trailer_400p",
+        "url": "https://download.blender.org/peach/trailer/trailer_400p.ogg",
+        "warnings": [
+          "WARNING: Your yt-dlp version (2026.07.04) is older than 90 days!"
+        ]
+      },
+      "mode": "audio",
+      "outputDir": "<PROJECT_ROOT>\\artifacts\\test-media",
+      "progress": null,
+      "quality": "best",
+      "speed": null,
+      "status": "completed",
+      "totalBytes": 4360399,
+      "updatedAt": "2026-11-09T03:48:36.915033300+00:00"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "FluxDL",
+  "version": "0.1.0",
+  "identifier": "io.fluxdl.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      { "label": "workspace", "title": "FluxDL", "url": "index.html", "width": 1120, "height": 740, "minWidth": 760, "minHeight": 560, "center": true, "decorations": false, "backgroundColor": "#121319" },
+      { "label": "quick", "title": "FluxDL · Quick Capture", "url": "index.html?window=quick", "width": 632, "height": 260, "minWidth": 560, "minHeight": 260, "center": true, "visible": false, "decorations": false, "resizable": false, "skipTaskbar": true, "backgroundColor": "#191A21" }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http:; connect-src ipc: http://ipc.localhost; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "category": "Utility",
+    "shortDescription": "轻量、精致、本地优先的媒体下载工作台",
+    "resources": ["../THIRD_PARTY_NOTICES.md", "../LICENSE", "../licenses/"],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.ico"],
+    "windows": {
+      "nsis": { "displayLanguageSelector": true, "languages": ["SimpChinese", "English"], "installMode": "currentUser" },
+      "webviewInstallMode": { "type": "downloadBootstrapper", "silent": false }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+release/
+src-tauri/target/
+*.tsbuildinfo
+*.log
+.env*
+!/.env.example
+artifacts/
+src-tauri/gen/schemas/
+tools/
